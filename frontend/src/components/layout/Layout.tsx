@@ -45,12 +45,37 @@ const Layout: React.FC = () => {
         />
         
         {/* Page content */}
-        <main className="flex-1 relative overflow-y-auto focus:outline-none">
-          <div className="py-6">
+        <main className="flex-1 relative overflow-y-auto focus:outline-none" style={{ backgroundColor: '#F7F6F1' }}>
+          {/* Fondo animado sutil */}
+          <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" style={{ left: 256 }}>
+            <div style={{
+              position: 'absolute', top: '-20%', right: '-10%',
+              width: 500, height: 500, borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(0,64,133,0.04) 0%, transparent 70%)',
+              animation: 'bgBlob1 20s ease-in-out infinite',
+            }} />
+            <div style={{
+              position: 'absolute', bottom: '-10%', left: '10%',
+              width: 400, height: 400, borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(169,194,217,0.06) 0%, transparent 70%)',
+              animation: 'bgBlob2 25s ease-in-out infinite',
+            }} />
+          </div>
+          <div className="relative z-10 py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <Outlet />
             </div>
           </div>
+          <style>{`
+            @keyframes bgBlob1 {
+              0%,100% { transform: translate(0,0) scale(1); }
+              50% { transform: translate(-30px, 20px) scale(1.1); }
+            }
+            @keyframes bgBlob2 {
+              0%,100% { transform: translate(0,0) scale(1); }
+              50% { transform: translate(20px, -30px) scale(1.08); }
+            }
+          `}</style>
         </main>
       </div>
     </div>

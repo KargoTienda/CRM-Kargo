@@ -1,36 +1,39 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useMensajes } from '../../contexts/MensajesContext';
 import {
   HomeIcon,
-  UserGroupIcon,
-  UserIcon,
-  CurrencyDollarIcon,
-  ClipboardDocumentListIcon,
+  ArchiveBoxIcon,
+  BanknotesIcon,
+  ChatBubbleLeftRightIcon,
+  ChartBarIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
-  ChartBarIcon,
-  MagnifyingGlassIcon,
+  ShoppingBagIcon,
+  TruckIcon,
 } from '@heroicons/react/24/outline';
 
 interface NavigationItem {
   name: string;
   href: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  current?: boolean;
+  badge?: string;
 }
 
 const navigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-  { name: 'Contacts', href: '/contacts', icon: UserIcon },
-  { name: 'Leads', href: '/leads', icon: UserGroupIcon },
-  { name: 'Opportunities', href: '/opportunities', icon: CurrencyDollarIcon },
-  { name: 'Activities', href: '/activities', icon: ClipboardDocumentListIcon },
-  { name: 'Reports', href: '/reports', icon: ChartBarIcon },
+  { name: 'Catálogo', href: '/catalogo', icon: ArchiveBoxIcon },
+  { name: 'Finanzas', href: '/finanzas', icon: BanknotesIcon },
+  { name: 'MercadoLibre', href: '/mercadolibre', icon: ShoppingBagIcon },
+  { name: 'Instagram', href: '/instagram', icon: ChartBarIcon },
+  { name: 'Flex', href: '/flex', icon: TruckIcon },
+  { name: 'Mensajes', href: '/mensajes', icon: ChatBubbleLeftRightIcon },
 ];
 
 const Sidebar: React.FC = () => {
   const { user, logout } = useAuth();
+  const { pendientes } = useMensajes();
 
   const handleLogout = async () => {
     try {
@@ -41,78 +44,87 @@ const Sidebar: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col w-64 bg-white border-r border-gray-200 h-full">
+    <div className="flex flex-col w-64 h-full" style={{ backgroundColor: '#004085' }}>
       {/* Logo */}
-      <div className="flex items-center justify-center h-16 px-4 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-primary-600">My Awesome CRM</h1>
-      </div>
-
-      {/* Search */}
-      <div className="p-4">
-        <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          />
+      <div className="flex items-center h-16 px-5 border-b border-blue-800">
+        <div className="flex items-center space-x-2.5">
+          {/* K logo — fiel al original */}
+          <svg width="34" height="34" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="18" y="12" width="22" height="76" rx="4" fill="white"/>
+            <path d="M40 50 L78 12 L100 12 L58 50Z" fill="white"/>
+            <path d="M40 50 L78 88 L100 88 L58 50Z" fill="#A9C2D9"/>
+          </svg>
+          <div>
+            <h1 className="text-lg font-black text-white tracking-widest leading-none">KARGO</h1>
+            <p className="text-xs tracking-widest" style={{ color: '#A9C2D9' }}>CRM</p>
+          </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1">
         {navigation.map((item) => (
           <NavLink
             key={item.name}
             to={item.href}
             className={({ isActive }) =>
-              `sidebar-link ${isActive ? 'active' : ''}`
+              isActive
+                ? 'flex items-center px-3 py-2.5 text-sm font-medium rounded-lg text-white bg-white bg-opacity-20 border border-white border-opacity-20'
+                : 'flex items-center px-3 py-2.5 text-sm font-medium rounded-lg text-blue-100 hover:bg-white hover:bg-opacity-10 hover:text-white transition-colors duration-150'
             }
           >
-            <item.icon className="mr-3 h-5 w-5" aria-hidden="true" />
+            <item.icon className="mr-3 h-5 w-5 flex-shrink-0" aria-hidden="true" />
             {item.name}
+            {item.href === '/mensajes' && pendientes > 0 && (
+              <span className="ml-auto inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold"
+                style={{ backgroundColor: '#D35400', color: 'white' }}>
+                {pendientes > 9 ? '9+' : pendientes}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>
 
-      {/* User Profile & Settings */}
-      <div className="border-t border-gray-200 p-4">
-        <div className="flex items-center space-x-3 mb-4">
-          <div className="flex-shrink-0">
-            <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
-              <span className="text-sm font-medium text-primary-600">
-                {user?.username?.charAt(0).toUpperCase() || 'U'}
-              </span>
-            </div>
+      {/* Divider */}
+      <div className="mx-3 border-t border-blue-800" />
+
+      {/* Settings + User */}
+      <div className="px-3 py-4 space-y-1">
+        <NavLink
+          to="/configuracion"
+          className={({ isActive }) =>
+            isActive
+              ? 'flex items-center px-3 py-2.5 text-sm font-medium rounded-lg text-white bg-white bg-opacity-20'
+              : 'flex items-center px-3 py-2.5 text-sm font-medium rounded-lg text-blue-100 hover:bg-white hover:bg-opacity-10 hover:text-white transition-colors duration-150'
+          }
+        >
+          <Cog6ToothIcon className="mr-3 h-5 w-5" aria-hidden="true" />
+          Configuración
+        </NavLink>
+
+        <button
+          onClick={handleLogout}
+          className="flex items-center w-full px-3 py-2.5 text-sm font-medium rounded-lg text-blue-100 hover:bg-red-500 hover:bg-opacity-20 hover:text-red-300 transition-colors duration-150"
+        >
+          <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5" aria-hidden="true" />
+          Cerrar sesión
+        </button>
+      </div>
+
+      {/* User info */}
+      <div className="px-3 pb-4">
+        <div className="flex items-center space-x-3 px-3 py-2 rounded-lg bg-white bg-opacity-10">
+          <div className="flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm text-white" style={{ backgroundColor: '#D35400' }}>
+            {user?.username?.charAt(0).toUpperCase() || 'K'}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">
-              {user?.username || 'User'}
+            <p className="text-sm font-medium text-white truncate">
+              {user?.username || 'Usuario'}
             </p>
-            <p className="text-xs text-gray-500 truncate">
-              {user?.email || 'user@example.com'}
+            <p className="text-xs truncate" style={{ color: '#A9C2D9' }}>
+              Kargo
             </p>
           </div>
-        </div>
-
-        <div className="space-y-1">
-          <NavLink
-            to="/settings"
-            className={({ isActive }) =>
-              `sidebar-link ${isActive ? 'active' : ''}`
-            }
-          >
-            <Cog6ToothIcon className="mr-3 h-5 w-5" aria-hidden="true" />
-            Settings
-          </NavLink>
-          
-          <button
-            onClick={handleLogout}
-            className="sidebar-link w-full text-left text-gray-600 hover:text-red-600 hover:bg-red-50"
-          >
-            <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5" aria-hidden="true" />
-            Sign Out
-          </button>
         </div>
       </div>
     </div>

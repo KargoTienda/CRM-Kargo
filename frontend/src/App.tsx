@@ -3,15 +3,20 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
+import { DatosProvider } from './contexts/DatosContext';
+import { MensajesProvider } from './contexts/MensajesContext';
+import { NotificacionesProvider } from './contexts/NotificacionesContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import LoginForm from './components/auth/LoginForm';
 import Layout from './components/layout/Layout';
 import Dashboard from './components/dashboard/Dashboard';
-import ContactList from './components/contacts/ContactList';
-import LeadList from './components/leads/LeadList';
+import Catalogo from './components/catalogo/Catalogo';
+import Finanzas from './components/finanzas/Finanzas';
+import MercadoLibre from './components/mercadolibre/MercadoLibre';
+import Flex from './components/flex/Flex';
+import Mensajes from './components/mensajes/Mensajes';
 import './index.css';
 
-// Create a client
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -21,17 +26,28 @@ const queryClient = new QueryClient({
   },
 });
 
+const ComingSoon: React.FC<{ title: string }> = ({ title }) => (
+  <div className="text-center py-20">
+    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4" style={{ backgroundColor: '#e6edf5' }}>
+      <span className="text-2xl font-bold" style={{ color: '#004085' }}>K</span>
+    </div>
+    <h1 className="text-2xl font-bold mb-2" style={{ color: '#004085' }}>{title}</h1>
+    <p className="text-gray-400">Este módulo está en construcción</p>
+  </div>
+);
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <NotificacionesProvider>
+        <DatosProvider>
+        <MensajesProvider>
         <Router>
           <div className="App">
             <Routes>
-              {/* Public Routes */}
               <Route path="/login" element={<LoginForm />} />
-              
-              {/* Protected Routes */}
+
               <Route
                 path="/*"
                 element={
@@ -42,77 +58,38 @@ function App() {
               >
                 <Route path="" element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
-                <Route path="contacts" element={<ContactList />} />
-                <Route path="leads" element={<LeadList />} />
-                <Route 
-                  path="opportunities" 
-                  element={
-                    <div className="text-center py-12">
-                      <h1 className="text-2xl font-bold text-gray-900">Opportunities</h1>
-                      <p className="text-gray-600 mt-2">Coming soon...</p>
-                    </div>
-                  } 
-                />
-                <Route 
-                  path="activities" 
-                  element={
-                    <div className="text-center py-12">
-                      <h1 className="text-2xl font-bold text-gray-900">Activities</h1>
-                      <p className="text-gray-600 mt-2">Coming soon...</p>
-                    </div>
-                  } 
-                />
-                <Route 
-                  path="reports" 
-                  element={
-                    <div className="text-center py-12">
-                      <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
-                      <p className="text-gray-600 mt-2">Coming soon...</p>
-                    </div>
-                  } 
-                />
-                <Route 
-                  path="settings" 
-                  element={
-                    <div className="text-center py-12">
-                      <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-                      <p className="text-gray-600 mt-2">Coming soon...</p>
-                    </div>
-                  } 
-                />
+                <Route path="catalogo" element={<Catalogo />} />
+                <Route path="finanzas" element={<Finanzas />} />
+                <Route path="mercadolibre" element={<MercadoLibre />} />
+                <Route path="flex" element={<Flex />} />
+                <Route path="instagram" element={<ComingSoon title="Instagram" />} />
+                <Route path="mensajes" element={<Mensajes />} />
+                <Route path="configuracion" element={<ComingSoon title="Configuración" />} />
               </Route>
 
-              {/* Fallback */}
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
 
-            {/* Toast Notifications */}
             <Toaster
               position="top-right"
               toastOptions={{
                 duration: 4000,
-                style: {
-                  background: '#363636',
-                  color: '#fff',
-                },
+                style: { background: '#3A3A3A', color: '#fff' },
                 success: {
                   duration: 3000,
-                  iconTheme: {
-                    primary: '#10b981',
-                    secondary: '#fff',
-                  },
+                  iconTheme: { primary: '#D35400', secondary: '#fff' },
                 },
                 error: {
                   duration: 5000,
-                  iconTheme: {
-                    primary: '#ef4444',
-                    secondary: '#fff',
-                  },
+                  iconTheme: { primary: '#ef4444', secondary: '#fff' },
                 },
               }}
             />
           </div>
         </Router>
+        </MensajesProvider>
+        </DatosProvider>
+        </NotificacionesProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

@@ -13,19 +13,16 @@ export interface LoginResponse {
 
 class AuthService {
   async login(credentials: LoginCredentials): Promise<AuthTokens> {
-    const response = await apiService.post<LoginResponse>('/auth/token', null, {
-      params: credentials
-    });
-
-    const tokens: AuthTokens = {
-      access_token: response.access_token,
-      token_type: response.token_type
-    };
-
-    // Set tokens in API service
-    apiService.setTokens(tokens);
-
-    return tokens;
+    // Auth local mientras el backend no está corriendo
+    if (credentials.username === 'demo' && credentials.password === 'demo123') {
+      const tokens: AuthTokens = {
+        access_token: 'kargo-demo-token',
+        token_type: 'bearer',
+      };
+      apiService.setTokens(tokens);
+      return tokens;
+    }
+    throw new Error('Usuario o contraseña incorrectos');
   }
 
   async logout(): Promise<void> {

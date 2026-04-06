@@ -7,18 +7,24 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Kargo Brand Colors
         primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
+          50:  '#e6edf5',
+          100: '#c0d2e8',
+          200: '#96b4d9',
+          300: '#6b96ca',
+          400: '#4d80bf',
+          500: '#2e6ab4',
+          600: '#004085', // Deep Navy Blue — main
+          700: '#003370',
+          800: '#00265a',
+          900: '#001a3f',
         },
+        'kargo-blue':   '#004085',
+        'kargo-light':  '#A9C2D9',
+        'kargo-orange': '#D35400',
+        'kargo-dark':   '#3A3A3A',
+        'kargo-cream':  '#F7F6F1',
         gray: {
           50: '#f9fafb',
           100: '#f3f4f6',

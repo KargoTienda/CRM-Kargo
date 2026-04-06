@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/ml-api/:path*", "destination": "/api/ml-proxy/:path*" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}
