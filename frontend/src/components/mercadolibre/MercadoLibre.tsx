@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
-  ShoppingBagIcon, ChatBubbleLeftRightIcon, QuestionMarkCircleIcon,
+  ShoppingBagIcon, QuestionMarkCircleIcon,
   CheckCircleIcon, XCircleIcon, ArrowPathIcon, LinkIcon,
 } from '@heroicons/react/24/outline';
 import {
   getAuthUrl, exchangeCode, clearToken, isConnected,
-  getToken, getMiPerfil, getOrdenes, getPreguntas,
+  getMiPerfil, getOrdenes, getPreguntas,
 } from '../../services/mlService';
 
 const glass = {

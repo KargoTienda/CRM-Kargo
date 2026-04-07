@@ -44,67 +44,6 @@ function fechaCorta(isoStr?: string): string {
   return isoStr.slice(0, 10);
 }
 
-// ─── Datos de ejemplo (cuando ML no conectado) ───────────
-const EJEMPLO: MensajeML[] = [
-  {
-    id: 1, tipo: 'pregunta', respondido: false,
-    compradorId: 0, compradorNombre: 'Martín González',
-    productoTitulo: 'Mochila Trekking 40L', fecha: '2025-03-20',
-    mensajes: [{ de: 'comprador', texto: '¿El morral tiene garantía? ¿De cuánto tiempo?', fecha: '10:32' }],
-  },
-  {
-    id: 2, tipo: 'pregunta', respondido: false,
-    compradorId: 0, compradorNombre: 'Laura Ramírez',
-    productoTitulo: 'Morral Catterpillar', fecha: '2025-03-20',
-    mensajes: [{ de: 'comprador', texto: '¿Tienen en color negro? No lo veo en las fotos', fecha: '09:15' }],
-  },
-  {
-    id: 3, tipo: 'postventa', respondido: true,
-    compradorId: 0, compradorNombre: 'Carlos Fernández',
-    productoTitulo: 'Riñonera Básica', fecha: '2025-03-19',
-    mensajes: [
-      { de: 'comprador', texto: 'Me llegó el pedido pero la cremallera está trabada', fecha: '15:20' },
-      { de: 'vendedor', texto: 'Lamentamos el inconveniente. Por favor mandanos una foto y lo resolvemos.', fecha: '16:05' },
-      { de: 'comprador', texto: 'Listo, te mando foto ahora', fecha: '16:10' },
-    ],
-  },
-  {
-    id: 4, tipo: 'pregunta', respondido: true,
-    compradorId: 0, compradorNombre: 'Ana Lucía Pérez',
-    productoTitulo: 'Pechera Básica', fecha: '2025-03-19',
-    mensajes: [
-      { de: 'comprador', texto: '¿Hacen envíos al interior? ¿Cuánto tarda?', fecha: '11:00' },
-      { de: 'vendedor', texto: 'Sí! Hacemos envíos a todo el país. Entre 3 y 7 días hábiles.', fecha: '11:45' },
-    ],
-  },
-  {
-    id: 5, tipo: 'postventa', respondido: false,
-    compradorId: 0, compradorNombre: 'Diego Morales',
-    productoTitulo: 'Morral Fashion', fecha: '2025-03-18',
-    mensajes: [{ de: 'comprador', texto: 'Quería saber si puedo cambiar el talle, compré uno sin querer', fecha: '18:30' }],
-  },
-  {
-    id: 6, tipo: 'reclamo', respondido: false,
-    compradorId: 0, compradorNombre: 'Valentina Castro',
-    productoTitulo: 'Mochila Trekking 40L', fecha: '2025-03-17',
-    estadoReclamo: 'Abierto', motivoReclamo: 'Producto no recibido',
-    afectaReputacion: true,
-    ordenId: undefined, urlML: undefined,
-    mensajes: [
-      { de: 'comprador', texto: 'Compré hace 15 días y no me llegó nada. Quiero la devolución.', fecha: '09:00' },
-      { de: 'vendedor', texto: 'Hola! Revisando el seguimiento del envío. Te escribimos a la brevedad.', fecha: '10:15' },
-    ],
-  },
-  {
-    id: 7, tipo: 'reclamo', respondido: false,
-    compradorId: 0, compradorNombre: 'Sebastián Torres',
-    productoTitulo: 'Pechera Básica', fecha: '2025-03-10',
-    estadoReclamo: 'En proceso', motivoReclamo: 'Producto con defecto',
-    afectaReputacion: false,
-    ordenId: undefined, urlML: undefined,
-    mensajes: [{ de: 'comprador', texto: 'La cremallera se rompió a los 3 días. Quiero devolución o cambio.', fecha: '11:20' }],
-  },
-];
 
 const ESTADOS_RECLAMO: Record<string, string> = {
   opened:           'Abierto',

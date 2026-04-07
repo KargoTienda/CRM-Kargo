@@ -45,21 +45,6 @@ const productosIniciales: Producto[] = [
   { id: 26, nombre: 'Morral 55003',   marca: 'Kargo', categoria: 'Morral',   sku: 'M-55003',   codigoBarras: '55003',       imagen: undefined, usd: 5.52, costo: 8087,  precio: 33999, precioSinDesc: 39999, promoPorc: 0, colores: [{ color: 'Negro',   stockDeposito: 51,  stockSede: 4,  sku: 'M-55003-N'  }, { color: 'Azul',    stockDeposito: 25, stockSede: 5,  sku: 'M-55003-A'  }, { color: 'Gris',    stockDeposito: 0,  stockSede: 2,  sku: 'M-55003-G'  }] },
 ];
 
-// ─── Stock badge ──────────────────────────────────────────
-const StockBadge: React.FC<{ stock: number }> = ({ stock }) => {
-  if (stock === 0)
-    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-      <ExclamationTriangleIcon className="h-3 w-3" /> Sin stock
-    </span>;
-  if (stock <= 3)
-    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
-      <ExclamationTriangleIcon className="h-3 w-3" /> Bajo ({stock})
-    </span>;
-  return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
-    <CheckCircleIcon className="h-3 w-3" /> {stock} uds.
-  </span>;
-};
-
 // ─── Panel de configuración global ───────────────────────
 const ConfigPanel: React.FC<{ config: ConfigParams; onSave: (c: ConfigParams) => void; onClose: () => void }> = ({ config, onSave, onClose }) => {
   const [local, setLocal] = useState(config);
@@ -443,7 +428,6 @@ const Catalogo: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {productosFiltrados.map(p => {
-            const stockTotal = calcStockTotal(p);
             const ganBruta = calcGanBruta(p, config);
             const margen = calcMargen(ganBruta, p.precio);
             const precioMostrar = p.promoPorc > 0 ? Math.round(p.precio * (1 - p.promoPorc)) : p.precio;

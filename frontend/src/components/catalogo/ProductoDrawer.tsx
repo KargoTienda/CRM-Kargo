@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { XMarkIcon, PencilIcon, CubeIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PencilIcon } from '@heroicons/react/24/outline';
 import {
-  Producto, ConfigParams, calcGanBruta, calcMargen, calcComisionML,
-  calcFijoML, calcStockTotal, CATEGORIA_EMOJI,
+  Producto, ConfigParams, calcGanBruta, calcMargen,
+  calcStockTotal, CATEGORIA_EMOJI,
 } from './types';
 import PreciosCalc from './PreciosCalc';
 

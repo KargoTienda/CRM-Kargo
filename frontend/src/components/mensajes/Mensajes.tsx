@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   ChatBubbleLeftRightIcon, QuestionMarkCircleIcon, ExclamationTriangleIcon,
   PaperAirplaneIcon, MagnifyingGlassIcon, ArrowPathIcon,
-  CheckCircleIcon, ClockIcon, ShoppingBagIcon, UserCircleIcon,
+  CheckCircleIcon, ClockIcon, UserCircleIcon,
   ArchiveBoxIcon, InboxIcon, ArrowTopRightOnSquareIcon,
   CurrencyDollarIcon, CalendarIcon, TagIcon,
 } from '@heroicons/react/24/outline';

@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { XMarkIcon, PlusIcon, TrashIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import {
-  Producto, ConfigParams, ColorVariante, CATEGORIAS, CATEGORIA_EMOJI,
-  calcCosto, calcFijoML, calcComisionML, calcGanBruta, calcMargen,
+  Producto, ConfigParams, CATEGORIAS,
+  calcCosto,
 } from './types';
 import PreciosCalc from './PreciosCalc';
 
@@ -53,6 +53,7 @@ const ProductoModal: React.FC<Props> = ({ producto, config, onGuardar, onCerrar 
   const imgRef = useRef<HTMLInputElement>(null);
 
   // Auto-calcular costo cuando cambia USD o dólar
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (form.usd > 0) {
       setForm(f => ({ ...f, costo: calcCosto(f.usd, config) }));

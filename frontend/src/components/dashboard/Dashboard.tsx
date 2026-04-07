@@ -3,7 +3,7 @@ import { idbGet } from '../../utils/storage';
 import {
   ShoppingBagIcon, BanknotesIcon, ArrowTrendingUpIcon,
   XCircleIcon, ArrowPathIcon, CubeIcon, ChartBarIcon,
-  LinkIcon, ExclamationTriangleIcon, DocumentArrowDownIcon,
+  LinkIcon, DocumentArrowDownIcon,
 } from '@heroicons/react/24/outline';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 import { generarPDFInversor } from './generarPDF';
 import { calcMes, topProductosMes } from '../../data/finanzasData';
-import { useDatos, buscarProductoPorSKU } from '../../contexts/DatosContext';
+import { useDatos } from '../../contexts/DatosContext';
 import { Producto } from '../catalogo/types';
 
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-AR');

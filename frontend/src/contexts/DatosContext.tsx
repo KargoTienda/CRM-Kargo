@@ -204,6 +204,7 @@ export const DatosProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (skuML) {
               for (const prod of productos) {
                 let modificado = false;
+                // eslint-disable-next-line no-loop-func
                 const colores = prod.colores.map((c: any) => {
                   const skuVariante = c.sku || '';
                   const skuBase = prod.sku || '';

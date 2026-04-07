@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import {
   PlusIcon, ChevronLeftIcon, ChevronRightIcon,
-  BanknotesIcon, ArrowTrendingUpIcon, ArrowTrendingDownIcon,
-  DocumentArrowDownIcon, PencilIcon, CheckIcon, XMarkIcon,
+  PencilIcon, XMarkIcon,
 } from '@heroicons/react/24/outline';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, BarChart, Bar, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, BarChart, Bar,
 } from 'recharts';
 import { MesFinanciero, VentaProducto, calcMes, config } from '../../data/finanzasData';
 import { useDatos } from '../../contexts/DatosContext';
