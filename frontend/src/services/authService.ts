@@ -50,7 +50,9 @@ class AuthService {
   }
 
   isAuthenticated(): boolean {
-    return apiService.getTokens() !== null;
+    if (!apiService.getTokens()) return false;
+    const username = localStorage.getItem('kargo_username');
+    return USUARIOS.some(u => u.username === username);
   }
 
   getToken(): string | null {
