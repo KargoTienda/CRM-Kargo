@@ -48,7 +48,7 @@ const LoginForm: React.FC = () => {
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: yupResolver(schema),
-    defaultValues: { username: 'demo', password: 'demo123' },
+    defaultValues: { username: '', password: '' },
   });
 
   const onSubmit: SubmitHandler<FormData> = async (data) => {

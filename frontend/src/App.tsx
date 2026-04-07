@@ -15,6 +15,7 @@ import Finanzas from './components/finanzas/Finanzas';
 import MercadoLibre from './components/mercadolibre/MercadoLibre';
 import Flex from './components/flex/Flex';
 import Mensajes from './components/mensajes/Mensajes';
+import Configuracion from './components/configuracion/Configuracion';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -64,7 +65,7 @@ function App() {
                 <Route path="flex" element={<Flex />} />
                 <Route path="instagram" element={<ComingSoon title="Instagram" />} />
                 <Route path="mensajes" element={<Mensajes />} />
-                <Route path="configuracion" element={<ComingSoon title="Configuración" />} />
+                <Route path="configuracion" element={<Configuracion />} />
               </Route>
 
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

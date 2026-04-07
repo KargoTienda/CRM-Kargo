@@ -92,7 +92,7 @@ export async function insertTransaccion(tx: TransaccionStock): Promise<void> {
   const { error } = await supabase.from('kargo_transacciones').insert({
     id: tx.id, fecha: tx.fecha, producto_nombre: tx.productoNombre,
     sku: tx.sku, color: tx.color, cantidad: tx.cantidad,
-    destino: tx.destino, nota: tx.nota ?? null,
+    destino: tx.destino, nota: tx.nota ?? null, usuario: tx.usuario ?? null,
   });
   if (error) console.error('[db] insertTransaccion:', error.message);
 }
@@ -215,4 +215,27 @@ export async function insertOrdenProcesada(orderId: string): Promise<void> {
   const { error } = await supabase
     .from('kargo_ordenes_procesadas').upsert({ order_id: orderId });
   if (error) console.error('[db] insertOrdenProcesada:', error.message);
+}
+
+// ─── USUARIO PERFIL ──────────────────────────────────────────────────────────
+
+export interface UsuarioPerfil {
+  displayName: string;
+  avatar: string | null;
+  color: string;
+}
+
+export async function getUsuarioPerfil(username: string): Promise<UsuarioPerfil | null> {
+  const { data, error } = await supabase
+    .from('kargo_usuarios').select('*').eq('username', username).maybeSingle();
+  if (error || !data) return null;
+  return { displayName: data.display_name, avatar: data.avatar ?? null, color: data.color ?? '#004085' };
+}
+
+export async function saveUsuarioPerfil(username: string, perfil: UsuarioPerfil): Promise<void> {
+  const { error } = await supabase.from('kargo_usuarios').upsert({
+    username, display_name: perfil.displayName, avatar: perfil.avatar, color: perfil.color,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) console.error('[db] saveUsuarioPerfil:', error.message);
 }

@@ -17,6 +17,7 @@ export interface TransaccionStock {
   cantidad: number;
   destino: 'sede' | 'afuera' | 'venta_ml';
   nota?: string;
+  usuario?: string;
 }
 
 export interface Producto {

@@ -114,15 +114,21 @@ const Sidebar: React.FC = () => {
       {/* User info */}
       <div className="px-3 pb-4">
         <div className="flex items-center space-x-3 px-3 py-2 rounded-lg bg-white bg-opacity-10">
-          <div className="flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm text-white" style={{ backgroundColor: '#D35400' }}>
-            {user?.username?.charAt(0).toUpperCase() || 'K'}
+          <div
+            className="flex-shrink-0 h-8 w-8 rounded-full overflow-hidden flex items-center justify-center font-bold text-sm text-white"
+            style={{ backgroundColor: user?.avatar ? 'transparent' : (user?.color || '#D35400') }}
+          >
+            {user?.avatar
+              ? <img src={user.avatar} alt="avatar" className="h-full w-full object-cover" />
+              : (user?.displayName || user?.username || 'K').charAt(0).toUpperCase()
+            }
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-white truncate">
-              {user?.username || 'Usuario'}
+              {user?.displayName || user?.username || 'Usuario'}
             </p>
             <p className="text-xs truncate" style={{ color: '#A9C2D9' }}>
-              Kargo
+              Kargo CRM
             </p>
           </div>
         </div>

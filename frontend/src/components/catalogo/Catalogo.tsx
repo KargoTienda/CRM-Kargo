@@ -3,6 +3,7 @@ import {
   getProductos, upsertProductos, deleteProducto as dbDeleteProducto,
   getConfig, saveConfig, getTransacciones, insertTransaccion,
 } from '../../utils/db';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   PlusIcon, MagnifyingGlassIcon, TrashIcon, Cog6ToothIcon,
   ArchiveBoxIcon, XMarkIcon,
@@ -240,6 +241,7 @@ const ModalTransferencia: React.FC<{
 
 // ─── Catalogo principal ───────────────────────────────────
 const Catalogo: React.FC = () => {
+  const { user } = useAuth();
   const [productos, setProductos] = useState<Producto[]>(productosIniciales);
   const [config, setConfig] = useState<ConfigParams>(CONFIG_DEFAULT);
   const [cargado, setCargado] = useState(false);
@@ -312,6 +314,7 @@ const Catalogo: React.FC = () => {
       color,
       cantidad,
       destino,
+      usuario: user?.displayName || user?.username,
     };
     setTransacciones(prev => [tx, ...prev].slice(0, 200));
     insertTransaccion(tx);

@@ -22,8 +22,11 @@ export interface AuthTokens {
 export interface User {
   id: number;
   username: string;
+  displayName: string;
   email?: string;
   tenant_id: number;
+  avatar?: string | null;   // base64 foto de perfil
+  color?: string;           // color de acento del avatar
 }
 
 export interface AuthState {

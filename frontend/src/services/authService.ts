@@ -6,52 +6,55 @@ export interface LoginCredentials {
   password: string;
 }
 
-export interface LoginResponse {
-  access_token: string;
-  token_type: string;
-}
+// ─── Usuarios del sistema ─────────────────────────────────
+const USUARIOS: Array<{ id: number; username: string; displayName: string; password: string; color: string }> = [
+  { id: 1, username: 'tommy',  displayName: 'Tommy', password: 'woodhorse1', color: '#004085' },
+  { id: 2, username: 'pollo',  displayName: 'Pollo', password: 'pollo123',   color: '#D35400' },
+];
 
 class AuthService {
   async login(credentials: LoginCredentials): Promise<AuthTokens> {
-    // Auth local mientras el backend no está corriendo
-    if (credentials.username === 'demo' && credentials.password === 'demo123') {
-      const tokens: AuthTokens = {
-        access_token: 'kargo-demo-token',
-        token_type: 'bearer',
-      };
-      apiService.setTokens(tokens);
-      return tokens;
-    }
-    throw new Error('Usuario o contraseña incorrectos');
+    const u = USUARIOS.find(
+      u => u.username === credentials.username.toLowerCase() && u.password === credentials.password
+    );
+    if (!u) throw new Error('Usuario o contraseña incorrectos');
+
+    const tokens: AuthTokens = {
+      access_token: `kargo-token-${u.username}`,
+      token_type: 'bearer',
+    };
+    apiService.setTokens(tokens);
+    // Guardar username en localStorage para restaurar sesión
+    localStorage.setItem('kargo_username', u.username);
+    return tokens;
   }
 
   async logout(): Promise<void> {
-    // Clear tokens from API service
     apiService.clearTokens();
+    localStorage.removeItem('kargo_username');
   }
 
   getCurrentUser(): User | null {
     const tokens = apiService.getTokens();
     if (!tokens) return null;
-
-    // In a real app, you would decode the JWT token or fetch user info
-    // For demo purposes, we'll return a mock user
+    const username = localStorage.getItem('kargo_username');
+    const u = USUARIOS.find(u => u.username === username);
+    if (!u) return null;
     return {
-      id: 1,
-      username: 'demo',
-      email: 'demo@example.com',
-      tenant_id: 1
+      id: u.id,
+      username: u.username,
+      displayName: u.displayName,
+      color: u.color,
+      tenant_id: 1,
     };
   }
 
   isAuthenticated(): boolean {
-    const tokens = apiService.getTokens();
-    return tokens !== null;
+    return apiService.getTokens() !== null;
   }
 
   getToken(): string | null {
-    const tokens = apiService.getTokens();
-    return tokens?.access_token || null;
+    return apiService.getTokens()?.access_token || null;
   }
 }
 
