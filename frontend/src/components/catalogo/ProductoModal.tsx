@@ -53,11 +53,11 @@ const ProductoModal: React.FC<Props> = ({ producto, config, onGuardar, onCerrar 
   const imgRef = useRef<HTMLInputElement>(null);
 
   // Auto-calcular costo cuando cambia USD o dólar
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (form.usd > 0) {
       setForm(f => ({ ...f, costo: calcCosto(f.usd, config) }));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.usd, config.dolarOficial]);
 
   const set = (key: keyof Omit<Producto, 'id'>, val: any) =>

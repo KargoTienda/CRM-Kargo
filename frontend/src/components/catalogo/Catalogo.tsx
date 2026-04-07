@@ -5,7 +5,7 @@ import {
 } from '../../utils/db';
 import {
   PlusIcon, MagnifyingGlassIcon, TrashIcon, Cog6ToothIcon,
-  ArchiveBoxIcon, ExclamationTriangleIcon, CheckCircleIcon, XMarkIcon,
+  ArchiveBoxIcon, XMarkIcon,
   ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import {
