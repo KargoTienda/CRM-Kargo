@@ -1,18 +1,26 @@
 import axios from 'axios';
+import { supabase } from '../utils/db';
 
 const CLIENT_ID     = process.env.REACT_APP_ML_CLIENT_ID!;
 const CLIENT_SECRET = process.env.REACT_APP_ML_CLIENT_SECRET!;
-const REDIRECT_URI  = process.env.REACT_APP_ML_REDIRECT_URI!;
+
+// Redirect URI dinámico: usa la URL actual del navegador
+function getRedirectUri(): string {
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/mercadolibre`;
+  }
+  return process.env.REACT_APP_ML_REDIRECT_URI || '';
+}
 
 const TOKEN_KEY = 'ml_token';
 
-// ─── Token storage ────────────────────────────────────────
+// ─── Token storage (localStorage + Supabase) ─────────────
 
 export interface MLToken {
   access_token: string;
   refresh_token: string;
   user_id: number;
-  expires_at: number; // timestamp ms
+  expires_at: number;
 }
 
 export function getToken(): MLToken | null {
@@ -20,7 +28,7 @@ export function getToken(): MLToken | null {
   return raw ? JSON.parse(raw) : null;
 }
 
-export function saveToken(data: any): MLToken {
+export async function saveToken(data: any): Promise<MLToken> {
   const token: MLToken = {
     access_token:  data.access_token,
     refresh_token: data.refresh_token,
@@ -28,11 +36,32 @@ export function saveToken(data: any): MLToken {
     expires_at:    Date.now() + (data.expires_in - 60) * 1000,
   };
   localStorage.setItem(TOKEN_KEY, JSON.stringify(token));
+  // Persistir en Supabase para que sobreviva entre dispositivos
+  try {
+    await supabase.from('kargo_store').upsert({
+      key: TOKEN_KEY,
+      value: token,
+      updated_at: new Date().toISOString(),
+    });
+  } catch {}
   return token;
+}
+
+export async function loadTokenFromSupabase(): Promise<MLToken | null> {
+  try {
+    const { data } = await supabase.from('kargo_store')
+      .select('value').eq('key', TOKEN_KEY).maybeSingle();
+    if (data?.value) {
+      localStorage.setItem(TOKEN_KEY, JSON.stringify(data.value));
+      return data.value as MLToken;
+    }
+  } catch {}
+  return null;
 }
 
 export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
+  supabase.from('kargo_store').delete().eq('key', TOKEN_KEY).then(() => {});
 }
 
 export function isConnected(): boolean {
@@ -64,30 +93,35 @@ export async function getAuthUrl(): Promise<string> {
   const challenge = await generateCodeChallenge(verifier);
   sessionStorage.setItem('ml_code_verifier', verifier);
 
+  const redirectUri = getRedirectUri();
+  sessionStorage.setItem('ml_redirect_uri', redirectUri);
+
   const params = new URLSearchParams({
-    response_type:          'code',
-    client_id:              CLIENT_ID,
-    redirect_uri:           REDIRECT_URI,
-    scope:                  'read write offline_access',
-    code_challenge:         challenge,
-    code_challenge_method:  'S256',
+    response_type:         'code',
+    client_id:             CLIENT_ID,
+    redirect_uri:          redirectUri,
+    scope:                 'read write offline_access',
+    code_challenge:        challenge,
+    code_challenge_method: 'S256',
   });
   return `https://auth.mercadolibre.com.ar/authorization?${params}`;
 }
 
 export async function exchangeCode(code: string): Promise<MLToken> {
   const verifier = sessionStorage.getItem('ml_code_verifier');
-  if (!verifier) throw new Error('No se encontró el code_verifier. Intentá conectar de nuevo desde el botón.');
+  const redirectUri = sessionStorage.getItem('ml_redirect_uri') || getRedirectUri();
+  if (!verifier) throw new Error('No se encontró el code_verifier. Intentá conectar de nuevo.');
 
   const { data } = await axios.post('/ml-api/oauth/token', {
     grant_type:    'authorization_code',
     client_id:     CLIENT_ID,
     client_secret: CLIENT_SECRET,
     code,
-    redirect_uri:  REDIRECT_URI,
+    redirect_uri:  redirectUri,
     code_verifier: verifier,
   });
   sessionStorage.removeItem('ml_code_verifier');
+  sessionStorage.removeItem('ml_redirect_uri');
   return saveToken(data);
 }
 
@@ -105,12 +139,20 @@ export async function refreshAccessToken(): Promise<MLToken> {
 
 // ─── API helper ───────────────────────────────────────────
 
-export async function mlGet(path: string) {
+async function getValidToken(): Promise<MLToken> {
   let token = getToken();
+  if (!token) {
+    token = await loadTokenFromSupabase();
+  }
   if (!token) throw new Error('No conectado');
   if (Date.now() >= token.expires_at) {
     token = await refreshAccessToken();
   }
+  return token;
+}
+
+export async function mlGet(path: string) {
+  const token = await getValidToken();
   const { data } = await axios.get(`/ml-api${path}`, {
     headers: { Authorization: `Bearer ${token.access_token}` },
   });
@@ -118,9 +160,7 @@ export async function mlGet(path: string) {
 }
 
 export async function mlPost(path: string, body: any) {
-  let token = getToken();
-  if (!token) throw new Error('No conectado');
-  if (Date.now() >= token.expires_at) token = await refreshAccessToken();
+  const token = await getValidToken();
   const { data } = await axios.post(`/ml-api${path}`, body, {
     headers: { Authorization: `Bearer ${token.access_token}`, 'Content-Type': 'application/json' },
   });
@@ -133,9 +173,44 @@ export async function getMiPerfil() {
   return mlGet('/users/me');
 }
 
+/**
+ * Carga TODAS las órdenes usando paginación.
+ * La API de ML devuelve máximo 50 por llamada.
+ * Guarda todo en Supabase para histórico.
+ */
+export async function getTodasLasOrdenes(): Promise<any[]> {
+  const token = await getValidToken();
+  const LIMIT = 50;
+  let offset = 0;
+  let total = Infinity;
+  const todas: any[] = [];
+
+  while (offset < total) {
+    const data = await mlGet(
+      `/orders/search?seller=${token.user_id}&sort=date_desc&limit=${LIMIT}&offset=${offset}`
+    );
+    const resultados = data.results || [];
+    total = data.paging?.total ?? resultados.length;
+    todas.push(...resultados);
+    if (resultados.length < LIMIT) break;
+    offset += LIMIT;
+  }
+
+  // Guardar en Supabase para histórico
+  if (todas.length > 0) {
+    const rows = todas.map(o => ({ order_id: String(o.id), data: o }));
+    // upsert en bloques de 100
+    for (let i = 0; i < rows.length; i += 100) {
+      await supabase.from('kargo_ordenes_historial').upsert(rows.slice(i, i + 100));
+    }
+  }
+
+  return todas;
+}
+
+// Para carga rápida inicial (últimas 50 visibles en pantalla)
 export async function getOrdenes(limit = 50, offset = 0) {
-  const token = getToken();
-  if (!token) throw new Error('No conectado');
+  const token = await getValidToken();
   return mlGet(`/orders/search?seller=${token.user_id}&sort=date_desc&limit=${Math.min(limit, 50)}&offset=${offset}`);
 }
 
@@ -144,8 +219,7 @@ export async function getMensajes(packId: string) {
 }
 
 export async function getPreguntas(status = 'UNANSWERED') {
-  const token = getToken();
-  if (!token) throw new Error('No conectado');
+  const token = await getValidToken();
   return mlGet(`/questions/search?seller_id=${token.user_id}&status=${status}&limit=50`);
 }
 
@@ -154,14 +228,12 @@ export async function responderPregunta(questionId: number, texto: string) {
 }
 
 export async function getMensajesConversacion(packId: string) {
-  const token = getToken();
-  if (!token) throw new Error('No conectado');
+  const token = await getValidToken();
   return mlGet(`/messages/packs/${packId}/sellers/${token.user_id}?tag=post_sale`);
 }
 
 export async function enviarMensaje(packId: string, texto: string) {
-  const token = getToken();
-  if (!token) throw new Error('No conectado');
+  const token = await getValidToken();
   return mlPost(`/messages/packs/${packId}/sellers/${token.user_id}`, {
     from: { user_id: token.user_id },
     to: { user_id: 0 },

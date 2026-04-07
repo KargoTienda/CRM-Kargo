@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   ShoppingBagIcon, QuestionMarkCircleIcon,
   CheckCircleIcon, XCircleIcon, ArrowPathIcon, LinkIcon,
 } from '@heroicons/react/24/outline';
 import {
   getAuthUrl, exchangeCode, clearToken, isConnected,
-  getMiPerfil, getOrdenes, getPreguntas,
+  getMiPerfil, getOrdenes, getPreguntas, getTodasLasOrdenes,
 } from '../../services/mlService';
+import { toast } from 'react-hot-toast';
 
 const glass = {
   background: 'rgba(255,255,255,0.85)',
@@ -18,50 +20,57 @@ const glass = {
 
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-AR');
 
-// ─── Modal para pegar el código ──────────────────────────
-const ModalCodigo: React.FC<{ onConfirmar: (code: string) => void; onCerrar: () => void }> = ({ onConfirmar, onCerrar }) => {
+// ─── Modal para pegar el código (fallback manual) ─────────
+const ModalCodigo: React.FC<{ onConfirmar: (code: string) => void; onCerrar: () => void; redirectUri: string }> = ({ onConfirmar, onCerrar, redirectUri }) => {
   const [url, setUrl] = useState('');
 
   const extraerCodigo = () => {
     try {
       const u = new URL(url.trim());
       const code = u.searchParams.get('code');
-      if (code) {
-        onConfirmar(code);
-      } else {
-        alert('No encontré el código en esa URL. Asegurate de copiar la URL completa de la barra del navegador.');
-      }
+      if (code) { onConfirmar(code); }
+      else { toast.error('No encontré el código. Copiá la URL completa después de autorizar.'); }
     } catch {
-      alert('URL inválida. Copiá la URL completa de la barra del navegador.');
+      toast.error('URL inválida. Copiá la URL completa de la barra del navegador.');
     }
   };
+
+  const esPropiaDomain = redirectUri.includes(window.location.host);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl p-6">
         <div className="flex items-center gap-3 mb-4">
-          <div className="p-2.5 rounded-xl bg-yellow-50">
-            <ShoppingBagIcon className="h-5 w-5 text-yellow-600" />
+          <div className="p-2.5 rounded-xl" style={{ backgroundColor: '#FFF9E6' }}>
+            <ShoppingBagIcon className="h-5 w-5" style={{ color: '#D35400' }} />
           </div>
           <div>
-            <h2 className="font-bold" style={{ color: '#004085' }}>Paso 2 — Pegá la URL</h2>
-            <p className="text-xs text-gray-400">Después de autorizar en MercadoLibre</p>
+            <h2 className="font-bold" style={{ color: '#004085' }}>Conectar MercadoLibre</h2>
+            <p className="text-xs text-gray-400">Paso 2 — completar la autorización</p>
           </div>
         </div>
 
-        <div className="bg-blue-50 rounded-xl p-4 mb-4 text-xs text-blue-800 space-y-1">
-          <p className="font-bold">¿Cómo hacerlo?</p>
-          <p>1. Se abrió MercadoLibre en otra pestaña</p>
-          <p>2. Iniciá sesión y hacé clic en <strong>"Permitir acceso"</strong></p>
-          <p>3. Te va a llevar a Google — no te preocupes</p>
-          <p>4. Copiá la URL completa de la barra del navegador y pegala acá abajo</p>
+        <div className="bg-blue-50 rounded-xl p-4 mb-4 text-xs text-blue-800 space-y-1.5">
+          {esPropiaDomain ? (
+            <>
+              <p className="font-bold">MercadoLibre te redirigió de vuelta</p>
+              <p>Si ves esta pantalla, copiá la URL actual del navegador y pegala abajo.</p>
+            </>
+          ) : (
+            <>
+              <p className="font-bold">¿Cómo hacerlo?</p>
+              <p>1. Se abrió MercadoLibre — iniciá sesión y hacé clic en <strong>"Permitir acceso"</strong></p>
+              <p>2. Te va a redirigir a otra página (puede ser Google u otro)</p>
+              <p>3. Copiá la URL completa de la barra del navegador y pegala acá</p>
+            </>
+          )}
         </div>
 
         <textarea
           value={url}
           onChange={e => setUrl(e.target.value)}
-          placeholder="https://www.google.com/?code=TG-..."
+          placeholder="https://...?code=TG-..."
           className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-200 resize-none"
           rows={3}
         />
@@ -85,16 +94,32 @@ const ModalCodigo: React.FC<{ onConfirmar: (code: string) => void; onCerrar: () 
 
 // ─── MercadoLibre principal ──────────────────────────────
 const MercadoLibre: React.FC = () => {
+  const location = useLocation();
   const [conectado, setConectado] = useState(isConnected());
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [redirectUri, setRedirectUri] = useState('');
   const [cargando, setCargando] = useState(false);
+  const [sincronizando, setSincronizando] = useState(false);
   const [perfil, setPerfil] = useState<any>(null);
   const [ordenes, setOrdenes] = useState<any[]>([]);
   const [preguntas, setPreguntas] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  // Detectar callback de ML con ?code= en la URL
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const code = params.get('code');
+    if (code && !conectado) {
+      confirmarCodigo(code);
+      // Limpiar la URL
+      window.history.replaceState({}, '', '/mercadolibre');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (conectado) cargarDatos();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conectado]);
 
   const cargarDatos = async () => {
@@ -103,21 +128,37 @@ const MercadoLibre: React.FC = () => {
     try {
       const [p, o, q] = await Promise.all([
         getMiPerfil(),
-        getOrdenes(),
+        getOrdenes(50),
         getPreguntas(),
       ]);
       setPerfil(p);
       setOrdenes(o.results || []);
       setPreguntas(q.questions || []);
     } catch (e: any) {
-      setError('Error cargando datos de MercadoLibre. Intentá reconectar.');
+      const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Error desconocido';
+      setError(typeof msg === 'string' ? msg : 'Error cargando datos de MercadoLibre');
     } finally {
       setCargando(false);
     }
   };
 
+  const sincronizarTodo = async () => {
+    setSincronizando(true);
+    try {
+      const todas = await getTodasLasOrdenes();
+      setOrdenes(todas.slice(0, 200)); // mostrar hasta 200 en pantalla
+      toast.success(`Sincronizadas ${todas.length} órdenes`);
+    } catch (e: any) {
+      toast.error('Error sincronizando órdenes');
+    } finally {
+      setSincronizando(false);
+    }
+  };
+
   const iniciarConexion = async () => {
     const url = await getAuthUrl();
+    const redir = `${window.location.origin}/mercadolibre`;
+    setRedirectUri(redir);
     window.open(url, '_blank');
     setModalAbierto(true);
   };
@@ -125,12 +166,16 @@ const MercadoLibre: React.FC = () => {
   const confirmarCodigo = async (code: string) => {
     setModalAbierto(false);
     setCargando(true);
+    setError(null);
     try {
       await exchangeCode(code);
       setConectado(true);
+      toast.success('MercadoLibre conectado');
     } catch (e: any) {
-      const detalle = e?.response?.data?.message || e?.response?.data?.error || e?.message || 'Error desconocido';
-      setError(`Error al conectar: ${detalle}`);
+      const raw = e?.response?.data;
+      const msg = raw?.message || raw?.error_description || raw?.error
+        || e?.message || 'Error al conectar';
+      setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
       setCargando(false);
     }
   };
@@ -141,14 +186,15 @@ const MercadoLibre: React.FC = () => {
     setPerfil(null);
     setOrdenes([]);
     setPreguntas([]);
+    toast.success('Desconectado de MercadoLibre');
   };
 
   const estadoOrden = (status: string) => {
     const map: Record<string, { label: string; color: string; bg: string }> = {
-      paid:        { label: 'Pagada',      color: '#059669', bg: 'rgba(5,150,105,0.1)'  },
-      cancelled:   { label: 'Cancelada',   color: '#dc2626', bg: 'rgba(220,38,38,0.1)'  },
-      pending:     { label: 'Pendiente',   color: '#d97706', bg: 'rgba(217,119,6,0.1)'  },
-      in_process:  { label: 'En proceso',  color: '#0284c7', bg: 'rgba(2,132,199,0.1)'  },
+      paid:        { label: 'Pagada',     color: '#059669', bg: 'rgba(5,150,105,0.1)'  },
+      cancelled:   { label: 'Cancelada',  color: '#dc2626', bg: 'rgba(220,38,38,0.1)'  },
+      pending:     { label: 'Pendiente',  color: '#d97706', bg: 'rgba(217,119,6,0.1)'  },
+      in_process:  { label: 'En proceso', color: '#0284c7', bg: 'rgba(2,132,199,0.1)'  },
     };
     return map[status] || { label: status, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' };
   };
@@ -170,25 +216,37 @@ const MercadoLibre: React.FC = () => {
           <h2 className="text-xl font-black mb-2" style={{ color: '#004085' }}>
             Conectá MercadoLibre
           </h2>
-          <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
-            Al conectar vas a poder ver tus ventas, responder preguntas y mensajes directamente desde el CRM.
+          <p className="text-sm text-gray-500 mb-2 max-w-md mx-auto">
+            Al conectar podés ver ventas, responder preguntas y sincronizar stock automáticamente.
+          </p>
+          <p className="text-xs text-gray-400 mb-6">
+            URL de retorno: <code className="bg-gray-100 px-1 rounded">{window.location.origin}/mercadolibre</code>
+            <br/>Registrala en tu app de ML si aún no lo hiciste.
           </p>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 rounded-xl text-sm text-red-700">{error}</div>
+            <div className="mb-4 p-3 bg-red-50 rounded-xl text-sm text-red-700 text-left">{error}</div>
           )}
 
-          <button
-            onClick={iniciarConexion}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-black text-sm transition-all hover:scale-105"
-            style={{ backgroundColor: '#FFE600', color: '#3d2b00', boxShadow: '0 4px 16px rgba(255,230,0,0.4)' }}>
-            <LinkIcon className="h-4 w-4" />
-            Vincular MercadoLibre
-          </button>
+          {cargando ? (
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+              <ArrowPathIcon className="h-4 w-4 animate-spin" />
+              Conectando...
+            </div>
+          ) : (
+            <button
+              onClick={iniciarConexion}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-black text-sm transition-all hover:scale-105"
+              style={{ backgroundColor: '#FFE600', color: '#3d2b00', boxShadow: '0 4px 16px rgba(255,230,0,0.4)' }}>
+              <LinkIcon className="h-4 w-4" />
+              Vincular MercadoLibre
+            </button>
+          )}
         </div>
 
         {modalAbierto && (
           <ModalCodigo
+            redirectUri={redirectUri}
             onConfirmar={confirmarCodigo}
             onCerrar={() => setModalAbierto(false)}
           />
@@ -200,8 +258,6 @@ const MercadoLibre: React.FC = () => {
   // ── Conectado ────────────────────────────────────────────
   return (
     <div className="space-y-5">
-
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black" style={{ color: '#004085' }}>MercadoLibre</h1>
@@ -212,6 +268,13 @@ const MercadoLibre: React.FC = () => {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={sincronizarTodo} disabled={sincronizando}
+            title="Sincronizar todas las órdenes"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 hover:bg-blue-50 transition-all disabled:opacity-50"
+            style={{ color: '#004085' }}>
+            <ArrowPathIcon className={`h-4 w-4 ${sincronizando ? 'animate-spin' : ''}`} />
+            {sincronizando ? 'Sincronizando...' : 'Sync completo'}
+          </button>
           <button onClick={cargarDatos} disabled={cargando}
             className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-all disabled:opacity-50">
             <ArrowPathIcon className={`h-4 w-4 text-gray-500 ${cargando ? 'animate-spin' : ''}`} />
@@ -228,11 +291,10 @@ const MercadoLibre: React.FC = () => {
         <div className="p-3 bg-red-50 rounded-xl text-sm text-red-700">{error}</div>
       )}
 
-      {/* Stats rápidas */}
       {!cargando && (
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: 'Ventas recientes', valor: ordenes.length, icon: ShoppingBagIcon, color: '#004085', bg: '#e6edf5' },
+            { label: 'Órdenes cargadas', valor: ordenes.length, icon: ShoppingBagIcon, color: '#004085', bg: '#e6edf5' },
             { label: 'Preguntas sin resp.', valor: preguntas.length, icon: QuestionMarkCircleIcon, color: '#D35400', bg: '#fef3ec' },
             { label: 'Reputación', valor: perfil?.seller_reputation?.level_id || '—', icon: CheckCircleIcon, color: '#059669', bg: '#ecfdf5' },
           ].map(s => (
@@ -256,11 +318,10 @@ const MercadoLibre: React.FC = () => {
         </div>
       )}
 
-      {/* Órdenes */}
       {!cargando && ordenes.length > 0 && (
         <div className="rounded-2xl p-5" style={glass}>
           <div className="flex items-center justify-between mb-4">
-            <p className="font-bold text-sm" style={{ color: '#1a1a2e' }}>Ventas recientes</p>
+            <p className="font-bold text-sm" style={{ color: '#1a1a2e' }}>Ventas</p>
             <span className="text-xs text-gray-400">{ordenes.length} órdenes</span>
           </div>
           <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -293,7 +354,6 @@ const MercadoLibre: React.FC = () => {
         </div>
       )}
 
-      {/* Preguntas */}
       {!cargando && preguntas.length > 0 && (
         <div className="rounded-2xl p-5" style={glass}>
           <div className="flex items-center justify-between mb-4">
