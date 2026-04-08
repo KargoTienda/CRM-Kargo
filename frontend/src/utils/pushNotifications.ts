@@ -20,6 +20,15 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 export async function registrarServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) return null;
   try {
+    // Desregistrar cualquier SW roto (que apunte a index.html en lugar de sw.js)
+    const existing = await navigator.serviceWorker.getRegistrations();
+    for (const reg of existing) {
+      const url = reg.active?.scriptURL || reg.installing?.scriptURL || reg.waiting?.scriptURL || '';
+      if (url && !url.endsWith('sw.js')) {
+        console.log('[Kargo SW] desregistrando SW viejo/roto:', url);
+        await reg.unregister();
+      }
+    }
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
     console.log('[Kargo SW] registrado:', reg.scope);
     return reg;
