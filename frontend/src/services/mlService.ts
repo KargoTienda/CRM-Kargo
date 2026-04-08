@@ -4,12 +4,9 @@ import { supabase } from '../utils/db';
 const CLIENT_ID     = process.env.REACT_APP_ML_CLIENT_ID!;
 const CLIENT_SECRET = process.env.REACT_APP_ML_CLIENT_SECRET!;
 
-// Redirect URI dinámico: usa la URL actual del navegador
+// Redirect URI fijo: usa la env var, nunca la URL dinámica del navegador
 function getRedirectUri(): string {
-  if (typeof window !== 'undefined') {
-    return `${window.location.origin}/mercadolibre`;
-  }
-  return process.env.REACT_APP_ML_REDIRECT_URI || '';
+  return process.env.REACT_APP_ML_REDIRECT_URI || 'https://crm-kargo-qvdt.vercel.app/mercadolibre';
 }
 
 const TOKEN_KEY = 'ml_token';
