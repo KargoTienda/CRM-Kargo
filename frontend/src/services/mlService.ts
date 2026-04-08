@@ -69,48 +69,22 @@ export function isConnected(): boolean {
   return !!t && Date.now() < t.expires_at;
 }
 
-// ─── PKCE helpers ─────────────────────────────────────────
-
-function generateCodeVerifier(): string {
-  const array = new Uint8Array(64);
-  crypto.getRandomValues(array);
-  return btoa(String.fromCharCode(...Array.from(array)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
-async function generateCodeChallenge(verifier: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(verifier);
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  return btoa(String.fromCharCode(...Array.from(new Uint8Array(digest))))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
 // ─── OAuth ────────────────────────────────────────────────
 
-export async function getAuthUrl(): Promise<string> {
-  const verifier = generateCodeVerifier();
-  const challenge = await generateCodeChallenge(verifier);
-  sessionStorage.setItem('ml_code_verifier', verifier);
-
+export function getAuthUrl(): string {
   const redirectUri = getRedirectUri();
   sessionStorage.setItem('ml_redirect_uri', redirectUri);
 
   const params = new URLSearchParams({
-    response_type:         'code',
-    client_id:             CLIENT_ID,
-    redirect_uri:          redirectUri,
-    scope:                 'read write offline_access',
-    code_challenge:        challenge,
-    code_challenge_method: 'S256',
+    response_type: 'code',
+    client_id:     CLIENT_ID,
+    redirect_uri:  redirectUri,
   });
   return `https://auth.mercadolibre.com.ar/authorization?${params}`;
 }
 
 export async function exchangeCode(code: string): Promise<MLToken> {
-  const verifier = sessionStorage.getItem('ml_code_verifier');
   const redirectUri = sessionStorage.getItem('ml_redirect_uri') || getRedirectUri();
-  if (!verifier) throw new Error('No se encontró el code_verifier. Intentá conectar de nuevo.');
 
   const params = new URLSearchParams({
     grant_type:    'authorization_code',
@@ -118,12 +92,10 @@ export async function exchangeCode(code: string): Promise<MLToken> {
     client_secret: CLIENT_SECRET,
     code,
     redirect_uri:  redirectUri,
-    code_verifier: verifier,
   });
   const { data } = await axios.post('/ml-api/oauth/token', params.toString(), {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   });
-  sessionStorage.removeItem('ml_code_verifier');
   sessionStorage.removeItem('ml_redirect_uri');
   return saveToken(data);
 }
