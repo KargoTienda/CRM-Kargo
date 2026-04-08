@@ -175,9 +175,9 @@ export async function sincronizarTodo(
       const shipment = await mlGet(`/shipments/${shippingId}`);
       const lt = shipment?.logistic_type;
       console.log(`[Flex] Orden ${orderId} shipment ${shippingId} logistic_type=${lt}`);
-      // ML maneja: 'fulfillment', 'crossdocking', 'me1', 'me2', 'not_specified'
-      // Flex/propio: 'self_service', 'custom', 'xd_drop_off', 'drop_off', 'mandate'
-      const esEnvioPropio = lt && !['fulfillment', 'crossdocking', 'me1', 'me2', 'not_specified'].includes(lt);
+      // Solo 'self_service' es Flex real (vos entregás al cliente directamente)
+      // 'xd_drop_off' = dejás en punto ML, ML entrega → NO es Flex
+      const esEnvioPropio = lt === 'self_service';
       if (esEnvioPropio) {
         flexOrdenesDetectadas++;
         const fechaRaw = shipment.date_shipped || orden.date_closed || orden.date_created;
