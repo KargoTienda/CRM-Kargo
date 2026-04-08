@@ -6,8 +6,9 @@ import {
 } from '@heroicons/react/24/outline';
 import {
   getAuthUrl, exchangeCode, clearToken, isConnected,
-  getMiPerfil, getOrdenes, getPreguntas, getTodasLasOrdenes,
+  getMiPerfil, getOrdenes, getPreguntas,
 } from '../../services/mlService';
+import { sincronizarTodo } from '../../services/syncService';
 import { toast } from 'react-hot-toast';
 
 const glass = {
@@ -69,16 +70,20 @@ const MercadoLibre: React.FC = () => {
     }
   };
 
-  const sincronizarTodo = async () => {
+  const [progreso, setProgreso] = useState('');
+
+  const handleSincronizar = async () => {
     setSincronizando(true);
+    setProgreso('');
     try {
-      const todas = await getTodasLasOrdenes();
-      setOrdenes(todas.slice(0, 200)); // mostrar hasta 200 en pantalla
-      toast.success(`Sincronizadas ${todas.length} órdenes`);
+      const result = await sincronizarTodo(msg => setProgreso(msg));
+      await cargarDatos();
+      toast.success(`Sync completo: ${result.ordenesTotal} órdenes, ${result.transaccionesCreadas} ventas nuevas, ${result.flexDiasActualizados} días Flex`);
     } catch (e: any) {
-      toast.error('Error sincronizando órdenes');
+      toast.error('Error sincronizando: ' + (e?.message || 'desconocido'));
     } finally {
       setSincronizando(false);
+      setProgreso('');
     }
   };
 
@@ -184,16 +189,11 @@ const MercadoLibre: React.FC = () => {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={sincronizarTodo} disabled={sincronizando}
-            title="Sincronizar todas las órdenes"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 hover:bg-blue-50 transition-all disabled:opacity-50"
-            style={{ color: '#004085' }}>
+          <button onClick={handleSincronizar} disabled={sincronizando}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-60"
+            style={{ backgroundColor: '#004085' }}>
             <ArrowPathIcon className={`h-4 w-4 ${sincronizando ? 'animate-spin' : ''}`} />
-            {sincronizando ? 'Sincronizando...' : 'Sync completo'}
-          </button>
-          <button onClick={cargarDatos} disabled={cargando}
-            className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-all disabled:opacity-50">
-            <ArrowPathIcon className={`h-4 w-4 text-gray-500 ${cargando ? 'animate-spin' : ''}`} />
+            {sincronizando ? (progreso || 'Sincronizando...') : 'Sincronizar todo'}
           </button>
           <button onClick={desconectar}
             className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 text-gray-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all">

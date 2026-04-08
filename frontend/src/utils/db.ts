@@ -93,6 +93,18 @@ export async function getTransacciones(): Promise<TransaccionStock[]> {
   return (data || []).map(mapTx);
 }
 
+export async function getMLOrderIdsProcessed(): Promise<Set<string>> {
+  const { data } = await supabase
+    .from('kargo_transacciones')
+    .select('nota')
+    .like('nota', 'ML:%');
+  const ids = new Set<string>();
+  for (const row of (data || [])) {
+    if (row.nota?.startsWith('ML:')) ids.add(row.nota.slice(3));
+  }
+  return ids;
+}
+
 export async function getTransaccionesByProducto(skuBase: string, nombre: string): Promise<TransaccionStock[]> {
   // Traer todas las transacciones del producto filtrando por nombre o SKU que empiece con el SKU base
   const { data, error } = await supabase
