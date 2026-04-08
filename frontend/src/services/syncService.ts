@@ -117,7 +117,7 @@ export async function sincronizarTodo(
         }
         const zip = orden.shipping?.receiver_address?.zip_code || '';
         const zona = clasificarZona(zip);
-        flexPorFecha[fecha][zona] += (orden.order_items || []).reduce((s: number, i: any) => s + (i.quantity || 1), 0);
+        flexPorFecha[fecha][zona] += 1; // 1 entrega por pedido, no por unidad
         try {
           const hora = new Date(fechaRaw).getHours();
           if (hora < 9) flexPorFecha[fecha].aTiempo++;
@@ -188,8 +188,7 @@ export async function sincronizarTodo(
         }
         const zip = shipment.receiver_address?.zip_code || orden.shipping?.receiver_address?.zip_code || '';
         const zona = clasificarZona(zip);
-        const qty = (orden.order_items || []).reduce((s: number, i: any) => s + (i.quantity || 1), 0);
-        flexPorFecha[fecha][zona] += qty;
+        flexPorFecha[fecha][zona] += 1; // 1 entrega por pedido
         try {
           const hora = new Date(fechaRaw).getHours();
           if (hora < 9) flexPorFecha[fecha].aTiempo++;
