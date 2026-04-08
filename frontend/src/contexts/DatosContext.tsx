@@ -144,11 +144,26 @@ interface DatosContextType {
 
 const DatosContext = createContext<DatosContextType | null>(null);
 
+// Auto-sync en background via endpoint server-side
+async function triggerAutoSync() {
+  try {
+    await fetch('/api/sync-auto', { method: 'POST' });
+  } catch (_) {}
+}
+
 export const DatosProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mlConectado, setMlConectado] = useState(isConnected());
   const [meses, setMeses] = useState<MesFinanciero[]>(MESES_DATA);
   const [cargandoML, setCargandoML] = useState(false);
   const [errorML, setErrorML] = useState<string | null>(null);
+
+  // Auto-sync al cargar si ML está conectado
+  useEffect(() => {
+    if (isConnected()) {
+      triggerAutoSync();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const cargarDesdeML = useCallback(async () => {
     if (!isConnected()) {
