@@ -165,6 +165,7 @@ export async function sincronizarTodo(
   for (const orden of ordenes) {
     if (orden.status !== 'paid') continue;
     if (esFlexOrder(orden)) continue; // ya procesado
+    const orderId = String(orden.id);
     const shippingId = orden.shipping?.id;
     if (!shippingId) continue;
     const fechaOrden = new Date(orden.date_created || '');
