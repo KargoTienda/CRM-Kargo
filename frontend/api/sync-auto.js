@@ -62,7 +62,7 @@ async function getValidMLToken(supabase) {
 // ─── Push Notifications ───────────────────────────────────
 
 const VAPID_PUBLIC_KEY = process.env.REACT_APP_VAPID_PUBLIC_KEY;
-const VAPID_PRIVATE_KEY = process.env.REACT_APP_VAPID_PRIVATE_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
 const VAPID_EMAIL = process.env.REACT_APP_VAPID_EMAIL || 'mailto:admin@kargo.com';
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
