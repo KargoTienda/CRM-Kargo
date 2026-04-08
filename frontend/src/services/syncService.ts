@@ -52,13 +52,11 @@ function getColor(attrs: any[]): string {
 }
 
 function esFlexOrder(orden: any): boolean {
-  const s = orden.shipping;
-  if (!s) return false;
+  const tags: string[] = orden.tags || [];
   return (
-    s.logistic_type === 'custom' ||
-    s.logistic_type === 'self_service' ||
-    (orden.tags || []).some((t: string) => t.toLowerCase().includes('flex')) ||
-    (orden.tags || []).includes('delivered_by_seller')
+    tags.includes('d2c') ||
+    tags.includes('delivered_by_seller') ||
+    tags.some((t: string) => t.toLowerCase().includes('flex'))
   );
 }
 

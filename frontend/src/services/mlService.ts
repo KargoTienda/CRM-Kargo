@@ -253,13 +253,11 @@ function clasificarZonaFlex(zip: string): 'caba' | 'primerCordon' | 'segundoCord
 }
 
 function esFlexOrder(orden: any): boolean {
-  const shipping = orden.shipping;
-  if (!shipping) return false;
+  const tags: string[] = orden.tags || [];
   return (
-    shipping.logistic_type === 'custom' ||
-    shipping.logistic_type === 'self_service' ||
-    (orden.tags || []).some((t: string) => t.toLowerCase().includes('flex')) ||
-    (orden.tags || []).includes('delivered_by_seller')
+    tags.includes('d2c') ||
+    tags.includes('delivered_by_seller') ||
+    tags.some((t: string) => t.toLowerCase().includes('flex'))
   );
 }
 
