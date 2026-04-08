@@ -1,6 +1,7 @@
 /**
- * Proxy genérico para la API de MercadoLibre.
- * Recibe el path como query param: /api/ml-proxy?path=/users/me
+ * Proxy para la API de MercadoLibre.
+ * Llamado directamente: GET /api/ml-proxy?path=/users/me&seller=123...
+ * El parámetro 'path' es el endpoint de ML, el resto son query params adicionales.
  */
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -8,16 +9,18 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
 
-  const { path, ...queryParams } = req.query;
+  const { path, ...extraParams } = req.query;
   if (!path) { res.status(400).json({ error: 'Missing path param' }); return; }
 
-  const qs = Object.keys(queryParams).length
-    ? '?' + new URLSearchParams(queryParams).toString()
+  // Construir URL de ML con params adicionales
+  const qs = Object.keys(extraParams).length
+    ? '?' + new URLSearchParams(extraParams).toString()
     : '';
   const mlUrl = `https://api.mercadolibre.com${path}${qs}`;
 
-  const headers = { 'Content-Type': 'application/json' };
+  const headers = {};
   if (req.headers.authorization) headers['Authorization'] = req.headers.authorization;
+  if (req.method !== 'GET') headers['Content-Type'] = 'application/json';
 
   const options = { method: req.method, headers };
   if (req.method !== 'GET' && req.body) {
