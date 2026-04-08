@@ -2,8 +2,5 @@
   "rewrites": [
     { "source": "/ml-api/:path*", "destination": "/api/ml-proxy?path=/:path*" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
-  ],
-  "crons": [
-    { "path": "/api/sync-auto", "schedule": "*/30 * * * *" }
   ]
 }
