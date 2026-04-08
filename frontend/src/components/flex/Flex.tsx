@@ -421,12 +421,24 @@ const Flex: React.FC = () => {
   const [sincronizando, setSincronizando] = useState(false);
   const mlConectado = isConnected();
 
-  useEffect(() => {
+  const cargarDatos = () => {
     Promise.all([getFlexPedidos(), getFlexConfig()]).then(([p, c]) => {
       if (p.length > 0) setPedidos(p);
-      if (c) setConfig(c);
+      if (c) setConfig(prev => ({ ...prev, ...c }));
       setCargado(true);
     });
+  };
+
+  useEffect(() => {
+    cargarDatos();
+
+    // Recargar datos Flex cuando el sync automático termina
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'last_sync_at') cargarDatos();
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

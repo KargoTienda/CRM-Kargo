@@ -148,7 +148,12 @@ const DatosContext = createContext<DatosContextType | null>(null);
 async function triggerAutoSync() {
   try {
     const res = await fetch('/api/sync-auto', { method: 'POST' });
-    if (res.ok) localStorage.setItem('last_sync_at', new Date().toISOString());
+    if (res.ok) {
+      const now = new Date().toISOString();
+      localStorage.setItem('last_sync_at', now);
+      // Notificar a otros componentes (Flex, etc.) que hay datos nuevos
+      window.dispatchEvent(new StorageEvent('storage', { key: 'last_sync_at', newValue: now }));
+    }
   } catch (_) {}
 }
 
