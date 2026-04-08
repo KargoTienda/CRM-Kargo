@@ -14,6 +14,7 @@ export interface SyncResult {
   ordenesTotal: number;
   transaccionesCreadas: number;
   flexDiasActualizados: number;
+  flexOrdenesDetectadas: number;
 }
 
 // ─── Matcheo ML item → producto del catálogo ──────────────
@@ -93,6 +94,7 @@ export async function sincronizarTodo(
   // 4. Procesar cada orden pagada → kargo_transacciones
   onProgress?.('Creando transacciones de ventas...');
   let transaccionesCreadas = 0;
+  let flexOrdenesDetectadas = 0;
 
   // Para Flex: acumular por fecha
   const flexPorFecha: Record<string, {
@@ -106,6 +108,7 @@ export async function sincronizarTodo(
 
     // Flex: siempre actualizar aunque ya esté procesada
     if (esFlexOrder(orden)) {
+      flexOrdenesDetectadas++;
       const fechaRaw = orden.shipping?.date_shipped || orden.date_closed || orden.date_created;
       if (fechaRaw) {
         const fecha = fechaRaw.slice(0, 10);
@@ -170,7 +173,12 @@ export async function sincronizarTodo(
     try {
       const shipment = await mlGet(`/shipments/${shippingId}`);
       const lt = shipment?.logistic_type;
-      if (lt === 'self_service' || lt === 'custom' || lt === 'xd_drop_off') {
+      console.log(`[Flex] Orden ${orderId} shipment ${shippingId} logistic_type=${lt}`);
+      // ML maneja: 'fulfillment', 'crossdocking', 'me1', 'me2', 'not_specified'
+      // Flex/propio: 'self_service', 'custom', 'xd_drop_off', 'drop_off', 'mandate'
+      const esEnvioPropio = lt && !['fulfillment', 'crossdocking', 'me1', 'me2', 'not_specified'].includes(lt);
+      if (esEnvioPropio) {
+        flexOrdenesDetectadas++;
         const fechaRaw = shipment.date_shipped || orden.date_closed || orden.date_created;
         if (!fechaRaw) continue;
         const fecha = fechaRaw.slice(0, 10);
@@ -204,5 +212,6 @@ export async function sincronizarTodo(
     ordenesTotal: ordenes.length,
     transaccionesCreadas,
     flexDiasActualizados: flexDias.length,
+    flexOrdenesDetectadas,
   };
 }

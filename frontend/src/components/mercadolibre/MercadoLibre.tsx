@@ -78,7 +78,7 @@ const MercadoLibre: React.FC = () => {
     try {
       const result = await sincronizarTodo(msg => setProgreso(msg));
       await cargarDatos();
-      toast.success(`Sync completo: ${result.ordenesTotal} órdenes, ${result.transaccionesCreadas} ventas nuevas, ${result.flexDiasActualizados} días Flex`);
+      toast.success(`Sync completo: ${result.ordenesTotal} órdenes, ${result.transaccionesCreadas} ventas nuevas, ${result.flexOrdenesDetectadas} envíos Flex (${result.flexDiasActualizados} días)`);
     } catch (e: any) {
       toast.error('Error sincronizando: ' + (e?.message || 'desconocido'));
     } finally {
