@@ -112,13 +112,16 @@ export async function exchangeCode(code: string): Promise<MLToken> {
   const redirectUri = sessionStorage.getItem('ml_redirect_uri') || getRedirectUri();
   if (!verifier) throw new Error('No se encontró el code_verifier. Intentá conectar de nuevo.');
 
-  const { data } = await axios.post('/ml-api/oauth/token', {
+  const params = new URLSearchParams({
     grant_type:    'authorization_code',
     client_id:     CLIENT_ID,
     client_secret: CLIENT_SECRET,
     code,
     redirect_uri:  redirectUri,
     code_verifier: verifier,
+  });
+  const { data } = await axios.post('/ml-api/oauth/token', params.toString(), {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   });
   sessionStorage.removeItem('ml_code_verifier');
   sessionStorage.removeItem('ml_redirect_uri');
@@ -128,11 +131,14 @@ export async function exchangeCode(code: string): Promise<MLToken> {
 export async function refreshAccessToken(): Promise<MLToken> {
   const token = getToken();
   if (!token) throw new Error('No hay token guardado');
-  const { data } = await axios.post('/ml-api/oauth/token', {
+  const params = new URLSearchParams({
     grant_type:    'refresh_token',
     client_id:     CLIENT_ID,
     client_secret: CLIENT_SECRET,
     refresh_token: token.refresh_token,
+  });
+  const { data } = await axios.post('/ml-api/oauth/token', params.toString(), {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   });
   return saveToken(data);
 }

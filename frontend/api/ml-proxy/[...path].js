@@ -17,12 +17,20 @@ module.exports = async function handler(req, res) {
 
   const mlUrl = `https://api.mercadolibre.com/${pathStr}${qs}`;
 
-  const headers = { 'Content-Type': 'application/json' };
+  const incomingContentType = req.headers['content-type'] || 'application/json';
+  const headers = { 'Content-Type': incomingContentType };
   if (req.headers.authorization) headers['Authorization'] = req.headers.authorization;
 
   const options = { method: req.method, headers };
   if (req.method !== 'GET' && req.body) {
-    options.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+    if (incomingContentType.includes('application/x-www-form-urlencoded')) {
+      // Re-serializar como form-encoded (Vercel ya lo parseó como objeto)
+      options.body = typeof req.body === 'string'
+        ? req.body
+        : new URLSearchParams(req.body).toString();
+    } else {
+      options.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+    }
   }
 
   try {
