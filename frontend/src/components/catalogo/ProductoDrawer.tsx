@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { XMarkIcon, PencilIcon } from '@heroicons/react/24/outline';
 import {
   Producto, ConfigParams, calcGanBruta, calcMargen,
-  calcStockTotal, CATEGORIA_EMOJI,
+  calcStockTotal, CATEGORIA_EMOJI, TransaccionStock,
 } from './types';
+import { getTransacciones } from '../../utils/db';
 import PreciosCalc from './PreciosCalc';
 
 interface Props {
@@ -23,8 +24,33 @@ const COLORES_HEX: Record<string, string> = {
   'Negro con Rojo': '#7f1d1d', 'Negro con Amarillo': '#713f12',
 };
 
+const DESTINO_LABEL: Record<string, { label: string; color: string }> = {
+  sede:     { label: 'A sede',    color: '#004085' },
+  afuera:   { label: 'Salida',    color: '#D35400' },
+  venta_ml: { label: 'Venta ML',  color: '#059669' },
+};
+
 const ProductoDrawer: React.FC<Props> = ({ producto, config, onClose, onEditar }) => {
-  const [tabActiva, setTabActiva] = useState<'info' | 'precios' | 'stock'>('info');
+  const [tabActiva, setTabActiva] = useState<'info' | 'precios' | 'stock' | 'historial'>('info');
+  const [historial, setHistorial] = useState<TransaccionStock[]>([]);
+  const [cargandoHist, setCargandoHist] = useState(false);
+
+  useEffect(() => {
+    if (tabActiva !== 'historial' || !producto) return;
+    setCargandoHist(true);
+    getTransacciones().then(todas => {
+      const skuBase = producto.sku.toLowerCase();
+      const filtradas = todas
+        .filter(t =>
+          t.sku?.toLowerCase().startsWith(skuBase) ||
+          t.productoNombre?.toLowerCase() === producto.nombre.toLowerCase()
+        )
+        .sort((a, b) => b.fecha.localeCompare(a.fecha))
+        .slice(0, 50);
+      setHistorial(filtradas);
+      setCargandoHist(false);
+    });
+  }, [tabActiva, producto]);
 
   if (!producto) return null;
 
@@ -98,13 +124,13 @@ const ProductoDrawer: React.FC<Props> = ({ producto, config, onClose, onEditar }
 
         {/* Tabs */}
         <div className="flex border-b border-gray-100 flex-shrink-0">
-          {(['info', 'precios', 'stock'] as const).map(tab => (
+          {(['info', 'precios', 'stock', 'historial'] as const).map(tab => (
             <button key={tab} onClick={() => setTabActiva(tab)}
-              className="flex-1 py-2.5 text-xs font-semibold capitalize transition-colors"
+              className="flex-1 py-2.5 text-xs font-semibold transition-colors"
               style={tabActiva === tab
                 ? { color: '#004085', borderBottom: '2px solid #004085' }
                 : { color: '#9ca3af' }}>
-              {tab === 'info' ? 'Información' : tab === 'precios' ? 'Precios ML' : 'Stock colores'}
+              {tab === 'info' ? 'Info' : tab === 'precios' ? 'Precios' : tab === 'stock' ? 'Stock' : 'Historial'}
             </button>
           ))}
         </div>
@@ -141,6 +167,61 @@ const ProductoDrawer: React.FC<Props> = ({ producto, config, onClose, onEditar }
           {/* Tab Precios */}
           {tabActiva === 'precios' && (
             <PreciosCalc producto={producto} config={config} />
+          )}
+
+          {/* Tab Historial */}
+          {tabActiva === 'historial' && (
+            <div className="space-y-2">
+              <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Últimas 50 transacciones</p>
+              {cargandoHist ? (
+                <div className="flex justify-center py-8">
+                  <svg className="animate-spin h-5 w-5 text-gray-300" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                </div>
+              ) : historial.length === 0 ? (
+                <div className="text-center py-10 text-gray-400 text-sm">
+                  Sin movimientos registrados
+                </div>
+              ) : (
+                historial.map(t => {
+                  const meta = DESTINO_LABEL[t.destino] || { label: t.destino, color: '#6b7280' };
+                  const esVenta = t.destino === 'venta_ml' || t.destino === 'afuera';
+                  const fechaFmt = t.fecha
+                    ? new Date(t.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+                    : '—';
+                  return (
+                    <div key={t.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style={{ backgroundColor: meta.color + '18' }}>
+                          <span className="text-base">{esVenta ? '📦' : '🔄'}</span>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs font-bold px-1.5 py-0.5 rounded-md"
+                              style={{ backgroundColor: meta.color + '18', color: meta.color }}>
+                              {meta.label}
+                            </span>
+                            <span className="text-xs text-gray-500">{t.color || '—'}</span>
+                          </div>
+                          <p className="text-xs text-gray-400 mt-0.5 truncate">
+                            {fechaFmt}{t.usuario ? ` · ${t.usuario}` : ''}{t.nota ? ` · ${t.nota}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0 ml-2">
+                        <p className="text-sm font-black" style={{ color: esVenta ? '#dc2626' : '#004085' }}>
+                          {esVenta ? '-' : '+'}{t.cantidad}
+                        </p>
+                        <p className="text-xs text-gray-400">uds.</p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           )}
 
           {/* Tab Stock */}
