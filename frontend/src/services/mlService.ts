@@ -147,9 +147,11 @@ async function getValidToken(): Promise<MLToken> {
   return token;
 }
 
+const ML_API = 'https://api.mercadolibre.com';
+
 export async function mlGet(path: string) {
   const token = await getValidToken();
-  const { data } = await axios.get(`/ml-api${path}`, {
+  const { data } = await axios.get(`${ML_API}${path}`, {
     headers: { Authorization: `Bearer ${token.access_token}` },
   });
   return data;
@@ -157,7 +159,7 @@ export async function mlGet(path: string) {
 
 export async function mlPost(path: string, body: any) {
   const token = await getValidToken();
-  const { data } = await axios.post(`/ml-api${path}`, body, {
+  const { data } = await axios.post(`${ML_API}${path}`, body, {
     headers: { Authorization: `Bearer ${token.access_token}`, 'Content-Type': 'application/json' },
   });
   return data;

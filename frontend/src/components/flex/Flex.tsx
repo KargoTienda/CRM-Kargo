@@ -9,6 +9,7 @@ import {
 } from '../../utils/db';
 import { isConnected } from '../../services/mlService';
 import { sincronizarTodo } from '../../services/syncService';
+import { toast } from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -434,12 +435,12 @@ const Flex: React.FC = () => {
   const sincronizarDesdeML = async () => {
     setSincronizando(true);
     try {
-      await sincronizarTodo();
-      // Recargar desde Supabase después del sync
+      const result = await sincronizarTodo();
       const p = await getFlexPedidos();
       if (p.length > 0) setPedidos(p);
-    } catch (e) {
-      console.error('Error sincronizando Flex:', e);
+      toast.success(`Sync OK: ${result.flexDiasActualizados} días Flex detectados`);
+    } catch (e: any) {
+      toast.error('Error sync: ' + (e?.message || JSON.stringify(e)));
     } finally {
       setSincronizando(false);
     }
