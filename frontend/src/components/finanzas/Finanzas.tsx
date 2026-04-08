@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   PlusIcon, ChevronLeftIcon, ChevronRightIcon,
-  PencilIcon, XMarkIcon,
+  PencilIcon, XMarkIcon, DocumentArrowDownIcon,
 } from '@heroicons/react/24/outline';
 import {
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -10,6 +10,7 @@ import {
 import { MesFinanciero, VentaProducto, calcMes, config } from '../../data/finanzasData';
 import { useDatos } from '../../contexts/DatosContext';
 import { calcPlataqueLlega } from '../catalogo/types';
+import { generarPDFInversor } from '../dashboard/generarPDF';
 
 // ─── Helpers UI ──────────────────────────────────────────
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-AR');
@@ -163,6 +164,7 @@ const Finanzas: React.FC = () => {
   const { meses, setMeses, mlConectado } = useDatos();
   const [idxActual, setIdxActual] = useState(meses.length - 1);
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [generandoPDF, setGenerandoPDF] = useState(false);
 
   const mes = meses[idxActual];
   const stats = calcMes(mes);
@@ -177,9 +179,50 @@ const Finanzas: React.FC = () => {
     return { mes: m.mes.slice(0, 3), facturado: s.facturadoReal, ganancia: s.ganancia, pagoCris: s.pagoCris };
   });
 
+  // Top más vendidos del mes seleccionado
+  const topVendidos = [...mes.ventas]
+    .filter(v => v.unidades > 0)
+    .sort((a, b) => b.unidades - a.unidades)
+    .slice(0, 5);
+
   const guardarVentas = (ventas: VentaProducto[]) => {
     setMeses(prev => prev.map((m, i) => i === idxActual ? { ...m, ventas } : m));
     setModalAbierto(false);
+  };
+
+  const handlePDF = () => {
+    setGenerandoPDF(true);
+    try {
+      generarPDFInversor({
+        mes: mes.mes, año: mes.año,
+        facturadoAFIP:  stats.facturadoAFIP,
+        facturadoReal:  stats.facturadoReal,
+        ingresosBrutos: stats.ingresosBrutos,
+        costos:         stats.costos,
+        ganancia:       stats.ganancia,
+        pagoCris:       stats.pagoCris,
+        gananciaKargo:  stats.gananciaKargo,
+        sueldoCU:       stats.sueldoCU,
+        ventas:         stats.unidadesReales,
+        canceladas:     stats.canceladas,
+        devoluciones:   stats.devoluciones,
+        productos: mes.ventas.map(v => {
+          const ingresos = calcPlataqueLlega(v.precio, config) * v.unidades;
+          const ganP = ingresos - v.costo * v.unidades;
+          return {
+            nombre: v.nombre, unidades: v.unidades,
+            facturado: v.precio * v.unidades, ingresos,
+            ganancia: ganP, costoCris: v.costo * v.unidades + ganP * 0.5,
+          };
+        }),
+        mesAnterior: mesAnterior ? {
+          facturado: mesAnterior.facturadoReal,
+          ganancia:  mesAnterior.ganancia,
+        } : undefined,
+      });
+    } finally {
+      setGenerandoPDF(false);
+    }
   };
 
   return (
@@ -191,19 +234,22 @@ const Finanzas: React.FC = () => {
           <h1 className="text-2xl font-black" style={{ color: '#004085' }}>Finanzas</h1>
           <p className="text-sm text-gray-400 mt-0.5">Resumen financiero mensual</p>
         </div>
-        {mlConectado ? (
-          <span className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold"
-            style={{ backgroundColor: '#e6edf5', color: '#004085' }}>
-            Datos en tiempo real de MercadoLibre
-          </span>
-        ) : (
-          <button onClick={() => setModalAbierto(true)}
-            className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
-            style={{ backgroundColor: '#D35400' }}>
-            <PencilIcon className="h-4 w-4" />
-            Cargar ventas
+        <div className="flex items-center gap-2">
+          {!mlConectado && (
+            <button onClick={() => setModalAbierto(true)}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+              style={{ backgroundColor: '#D35400' }}>
+              <PencilIcon className="h-4 w-4" />
+              Cargar ventas
+            </button>
+          )}
+          <button onClick={handlePDF} disabled={generandoPDF}
+            className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-60"
+            style={{ backgroundColor: '#004085' }}>
+            <DocumentArrowDownIcon className="h-4 w-4" />
+            {generandoPDF ? 'Generando...' : `PDF ${mes.mes}`}
           </button>
-        )}
+        </div>
       </div>
 
       {/* Selector de mes */}
@@ -330,6 +376,43 @@ const Finanzas: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Top más vendidos */}
+      {topVendidos.length > 0 && (
+        <div className="rounded-2xl p-5" style={glass}>
+          <p className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-4">
+            Top más vendidos — {mes.mes} {mes.año}
+          </p>
+          <div className="space-y-2">
+            {topVendidos.map((v, i) => {
+              const maxUnidades = topVendidos[0].unidades;
+              const pct = Math.round((v.unidades / maxUnidades) * 100);
+              const ingresos = calcPlataqueLlega(v.precio, config) * v.unidades;
+              return (
+                <div key={i} className="flex items-center gap-3">
+                  <span className="text-xs font-black w-5 text-center"
+                    style={{ color: i === 0 ? '#D35400' : '#9ca3af' }}>
+                    {i + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs font-semibold truncate" style={{ color: '#3A3A3A' }}>{v.nombre}</p>
+                      <div className="flex items-center gap-3 ml-2 flex-shrink-0">
+                        <span className="text-xs font-black" style={{ color: '#004085' }}>{v.unidades} uds.</span>
+                        <span className="text-xs text-gray-400">{fmt(ingresos)}</span>
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-1.5">
+                      <div className="h-1.5 rounded-full transition-all duration-700"
+                        style={{ width: `${pct}%`, backgroundColor: i === 0 ? '#D35400' : '#004085' }} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Canceladas y Devoluciones */}
       {(stats.canceladas > 0 || stats.devoluciones > 0) && (
