@@ -29,25 +29,30 @@ export async function registrarServiceWorker(): Promise<ServiceWorkerRegistratio
   }
 }
 
-export async function suscribirPush(): Promise<boolean> {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    console.warn('[Push] Navegador no soporta push');
-    return false;
+export async function suscribirPush(): Promise<{ ok: boolean; reason: string }> {
+  if (!('serviceWorker' in navigator)) {
+    return { ok: false, reason: 'Tu navegador no soporta Service Workers' };
+  }
+  if (!('PushManager' in window)) {
+    return { ok: false, reason: 'Tu navegador no soporta notificaciones push' };
   }
   if (!VAPID_PUBLIC_KEY) {
-    console.warn('[Push] REACT_APP_VAPID_PUBLIC_KEY no configurada');
-    return false;
+    return { ok: false, reason: 'Falta configurar REACT_APP_VAPID_PUBLIC_KEY en Vercel' };
   }
 
-  // 1. Pedir permiso
+  // 1. Verificar que el SW esté registrado
+  let reg: ServiceWorkerRegistration;
+  try {
+    reg = await navigator.serviceWorker.ready;
+    console.log('[Push] SW listo:', reg.scope);
+  } catch (e) {
+    return { ok: false, reason: 'Service Worker no pudo inicializarse' };
+  }
+
+  // 2. Pedir permiso
   const perm = await Notification.requestPermission();
-  if (perm !== 'granted') {
-    console.warn('[Push] Permiso denegado');
-    return false;
-  }
-
-  // 2. Obtener registration
-  const reg = await navigator.serviceWorker.ready;
+  if (perm === 'denied') return { ok: false, reason: 'Permiso de notificaciones denegado por el usuario' };
+  if (perm !== 'granted') return { ok: false, reason: 'Permiso de notificaciones no otorgado' };
 
   // 3. Suscribirse
   let subscription: PushSubscription;
@@ -56,26 +61,24 @@ export async function suscribirPush(): Promise<boolean> {
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
-  } catch (e) {
+  } catch (e: any) {
     console.error('[Push] Error al suscribir:', e);
-    return false;
+    return { ok: false, reason: `Error al suscribir: ${e?.message || e}` };
   }
 
   // 4. Guardar en Supabase
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   const sub = subscription.toJSON();
   const { error } = await supabase.from('push_subscriptions').upsert(
-    {
-      endpoint: sub.endpoint,
-      keys: sub.keys,
-      updated_at: new Date().toISOString(),
-    },
+    { endpoint: sub.endpoint, keys: sub.keys, updated_at: new Date().toISOString() },
     { onConflict: 'endpoint' }
   );
-  if (error) console.error('[Push] Error guardando suscripción:', error.message);
-  else console.log('[Push] Suscripción guardada en Supabase');
-
-  return !error;
+  if (error) {
+    console.error('[Push] Error guardando suscripción:', error.message);
+    return { ok: false, reason: `Error guardando suscripción: ${error.message}` };
+  }
+  console.log('[Push] Suscripción guardada');
+  return { ok: true, reason: '' };
 }
 
 export async function desuscribirPush(): Promise<void> {

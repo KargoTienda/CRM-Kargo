@@ -31,10 +31,10 @@ const Configuracion: React.FC = () => {
         setPushSuscripto(false);
         toast.success('Notificaciones desactivadas');
       } else {
-        const ok = await suscribirPush();
-        setPushSuscripto(ok);
-        if (ok) toast.success('¡Notificaciones activadas!');
-        else toast.error('No se pudo activar (permiso denegado o sin soporte)');
+        const result = await suscribirPush();
+        setPushSuscripto(result.ok);
+        if (result.ok) toast.success('¡Notificaciones activadas! Vas a recibir alertas en este dispositivo.');
+        else toast.error(`No se pudo activar: ${result.reason}`, { duration: 6000 });
       }
     } catch {
       toast.error('Error al configurar notificaciones');
