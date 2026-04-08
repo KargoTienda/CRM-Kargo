@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
-import { CameraIcon, CheckIcon } from '@heroicons/react/24/outline';
+import React, { useState, useRef, useEffect } from 'react';
+import { CameraIcon, CheckIcon, BellIcon, BellSlashIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
+import { suscribirPush, desuscribirPush, estasSuscripto } from '../../utils/pushNotifications';
 
 const COLORES = [
   '#004085', '#D35400', '#16a34a', '#7c3aed', '#db2777',
@@ -14,7 +15,33 @@ const Configuracion: React.FC = () => {
   const [avatar, setAvatar] = useState<string | null>(user?.avatar ?? null);
   const [color, setColor] = useState(user?.color || '#004085');
   const [guardando, setGuardando] = useState(false);
+  const [pushSuscripto, setPushSuscripto] = useState(false);
+  const [pushCargando, setPushCargando] = useState(false);
   const imgRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    estasSuscripto().then(setPushSuscripto);
+  }, []);
+
+  const handleTogglePush = async () => {
+    setPushCargando(true);
+    try {
+      if (pushSuscripto) {
+        await desuscribirPush();
+        setPushSuscripto(false);
+        toast.success('Notificaciones desactivadas');
+      } else {
+        const ok = await suscribirPush();
+        setPushSuscripto(ok);
+        if (ok) toast.success('¡Notificaciones activadas!');
+        else toast.error('No se pudo activar (permiso denegado o sin soporte)');
+      }
+    } catch {
+      toast.error('Error al configurar notificaciones');
+    } finally {
+      setPushCargando(false);
+    }
+  };
 
   const handleFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -107,6 +134,41 @@ const Configuracion: React.FC = () => {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Push Notifications */}
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-2">Notificaciones push</label>
+          <button
+            onClick={handleTogglePush}
+            disabled={pushCargando}
+            className="w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all disabled:opacity-50"
+            style={{
+              borderColor: pushSuscripto ? '#16a34a' : '#e5e7eb',
+              background: pushSuscripto ? 'rgba(22,163,74,0.06)' : '#f9fafb',
+            }}
+          >
+            <div className="flex items-center gap-3">
+              {pushSuscripto
+                ? <BellIcon className="h-5 w-5" style={{ color: '#16a34a' }} />
+                : <BellSlashIcon className="h-5 w-5 text-gray-400" />
+              }
+              <div className="text-left">
+                <p className="text-sm font-semibold" style={{ color: pushSuscripto ? '#16a34a' : '#374151' }}>
+                  {pushSuscripto ? 'Notificaciones activas' : 'Notificaciones inactivas'}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {pushSuscripto
+                    ? 'Recibís alertas de ventas, mensajes y reclamos'
+                    : 'Activá para recibir alertas en este dispositivo'
+                  }
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-bold" style={{ color: pushSuscripto ? '#16a34a' : '#6b7280' }}>
+              {pushCargando ? '...' : pushSuscripto ? 'Desactivar' : 'Activar'}
+            </span>
+          </button>
         </div>
 
         {/* Guardar */}

@@ -5,6 +5,7 @@
  */
 
 const { createClient } = require('@supabase/supabase-js');
+const webpush = require('web-push');
 
 const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL;
 const SUPABASE_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY;
@@ -56,6 +57,36 @@ async function getValidMLToken(supabase) {
     token = await refreshMLToken(supabase, token.refresh_token);
   }
   return token;
+}
+
+// ─── Push Notifications ───────────────────────────────────
+
+const VAPID_PUBLIC_KEY = process.env.REACT_APP_VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.REACT_APP_VAPID_PRIVATE_KEY;
+const VAPID_EMAIL = process.env.REACT_APP_VAPID_EMAIL || 'mailto:admin@kargo.com';
+
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(VAPID_EMAIL, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+}
+
+async function enviarPush(supabase, { title, body, type = 'info', url = '/dashboard' }) {
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return;
+  try {
+    const { data: subs } = await supabase.from('push_subscriptions').select('endpoint, keys');
+    if (!subs?.length) return;
+    const payload = JSON.stringify({ title, body, type, url });
+    await Promise.allSettled(
+      subs.map(async (sub) => {
+        try {
+          await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload, { TTL: 86400 });
+        } catch (err) {
+          if (err.statusCode === 410 || err.statusCode === 404) {
+            await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+          }
+        }
+      })
+    );
+  } catch (_) {}
 }
 
 // ─── ML API ───────────────────────────────────────────────
@@ -225,6 +256,14 @@ async function sincronizarTodo(supabase, token) {
       };
       await supabase.from('kargo_transacciones').insert(tx);
       transaccionesCreadas++;
+
+      // Push notification por cada nueva venta
+      await enviarPush(supabase, {
+        title: `Nueva venta: ${producto?.nombre || titulo}`,
+        body: `${cantidad} unidad${cantidad > 1 ? 'es' : ''} · Orden #${orderId}`,
+        type: 'venta',
+        url: '/finanzas',
+      });
     }
   }
 

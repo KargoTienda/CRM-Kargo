@@ -378,6 +378,9 @@ out/
 # PWA (Progressive Web App)
 sw.js
 workbox-*.js
+# Excepciones Kargo CRM
+!frontend/public/sw.js
+!frontend/src/lib/
 
 # Sentry (error tracking)
 .sentryclirc
