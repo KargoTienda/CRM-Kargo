@@ -96,8 +96,6 @@ const ModalCodigo: React.FC<{ onConfirmar: (code: string) => void; onCerrar: () 
 const MercadoLibre: React.FC = () => {
   const location = useLocation();
   const [conectado, setConectado] = useState(isConnected());
-  const [modalAbierto, setModalAbierto] = useState(false);
-  const [redirectUri, setRedirectUri] = useState('');
   const [cargando, setCargando] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
   const [perfil, setPerfil] = useState<any>(null);
@@ -157,14 +155,10 @@ const MercadoLibre: React.FC = () => {
 
   const iniciarConexion = async () => {
     const url = await getAuthUrl();
-    const redir = `${window.location.origin}/mercadolibre`;
-    setRedirectUri(redir);
-    window.open(url, '_blank');
-    setModalAbierto(true);
+    window.location.href = url;
   };
 
   const confirmarCodigo = async (code: string) => {
-    setModalAbierto(false);
     setCargando(true);
     setError(null);
     try {
@@ -244,13 +238,6 @@ const MercadoLibre: React.FC = () => {
           )}
         </div>
 
-        {modalAbierto && (
-          <ModalCodigo
-            redirectUri={redirectUri}
-            onConfirmar={confirmarCodigo}
-            onCerrar={() => setModalAbierto(false)}
-          />
-        )}
       </div>
     );
   }
