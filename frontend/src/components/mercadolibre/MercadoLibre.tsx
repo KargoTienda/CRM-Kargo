@@ -155,8 +155,8 @@ const MercadoLibre: React.FC = () => {
     }
   };
 
-  const iniciarConexion = () => {
-    const url = getAuthUrl();
+  const iniciarConexion = async () => {
+    const url = await getAuthUrl();
     const redir = `${window.location.origin}/mercadolibre`;
     setRedirectUri(redir);
     window.open(url, '_blank');
