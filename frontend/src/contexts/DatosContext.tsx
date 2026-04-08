@@ -147,7 +147,8 @@ const DatosContext = createContext<DatosContextType | null>(null);
 // Auto-sync en background via endpoint server-side
 async function triggerAutoSync() {
   try {
-    await fetch('/api/sync-auto', { method: 'POST' });
+    const res = await fetch('/api/sync-auto', { method: 'POST' });
+    if (res.ok) localStorage.setItem('last_sync_at', new Date().toISOString());
   } catch (_) {}
 }
 

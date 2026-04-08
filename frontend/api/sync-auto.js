@@ -277,6 +277,11 @@ async function sincronizarTodo(supabase, token) {
     }
   }
 
+  // Guardar timestamp del último sync
+  await supabase.from('kargo_store').upsert({
+    key: 'last_sync_at', value: new Date().toISOString(), updated_at: new Date().toISOString(),
+  });
+
   log.push(`Transacciones creadas: ${transaccionesCreadas}`);
   log.push(`Flex detectados: ${flexOrdenesDetectadas} envíos, ${flexDiasActualizados} días`);
 

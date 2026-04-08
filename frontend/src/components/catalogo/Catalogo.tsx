@@ -7,8 +7,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import {
   PlusIcon, MagnifyingGlassIcon, TrashIcon, Cog6ToothIcon,
   ArchiveBoxIcon, XMarkIcon,
-  ArrowRightIcon,
+  ArrowRightIcon, DocumentArrowDownIcon,
 } from '@heroicons/react/24/outline';
+import { generarPDFCatalogo } from './generarPDFCatalogo';
 import {
   Producto, ConfigParams, CONFIG_DEFAULT, CATEGORIAS, CATEGORIA_EMOJI,
   calcGanBruta, calcMargen, calcStockTotal, TransaccionStock,
@@ -370,6 +371,10 @@ const Catalogo: React.FC = () => {
           <p className="text-sm text-gray-400 mt-0.5">{productos.length} productos · Dólar oficial: ${config.dolarOficial.toLocaleString('es-AR')}</p>
         </div>
         <div className="flex gap-2">
+          <button onClick={() => generarPDFCatalogo(productos)}
+            className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">
+            <DocumentArrowDownIcon className="h-4 w-4" /> PDF Stock
+          </button>
           <button onClick={() => setHistorialAbierto(true)}
             className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">
             Historial stock

@@ -1,7 +1,45 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { BellIcon, Bars3Icon, ShoppingBagIcon, ChatBubbleLeftRightIcon, ExclamationTriangleIcon, ArchiveBoxXMarkIcon } from '@heroicons/react/24/outline';
+import { BellIcon, Bars3Icon, ShoppingBagIcon, ChatBubbleLeftRightIcon, ExclamationTriangleIcon, ArchiveBoxXMarkIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { useNotificaciones } from '../../contexts/NotificacionesContext';
 import { TipoNotif } from '../../utils/notificaciones';
+
+const SYNC_INTERVAL_MS = 30 * 60 * 1000; // 30 minutos
+
+const SyncCountdown: React.FC = () => {
+  const [segs, setSegs] = useState<number | null>(null);
+
+  useEffect(() => {
+    const calcular = () => {
+      const raw = localStorage.getItem('last_sync_at');
+      if (!raw) { setSegs(null); return; }
+      const elapsed = Date.now() - new Date(raw).getTime();
+      const restante = Math.max(0, Math.floor((SYNC_INTERVAL_MS - elapsed) / 1000));
+      setSegs(restante);
+    };
+    calcular();
+    const t = setInterval(calcular, 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (segs === null) return null;
+
+  const min = Math.floor(segs / 60);
+  const sec = segs % 60;
+  const label = segs === 0
+    ? 'Sincronizando...'
+    : `Sync en ${min}:${String(sec).padStart(2, '0')}`;
+
+  return (
+    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
+      style={{ backgroundColor: 'rgba(0,64,133,0.06)' }}>
+      <ArrowPathIcon className={`h-3 w-3 ${segs === 0 ? 'animate-spin' : ''}`}
+        style={{ color: '#004085', opacity: 0.6 }} />
+      <span className="text-xs font-medium" style={{ color: '#004085', opacity: 0.7 }}>
+        {label}
+      </span>
+    </div>
+  );
+};
 
 const TIPO_CONFIG: Record<TipoNotif, { color: string; bg: string; Icon: React.ComponentType<any> }> = {
   venta:              { color: '#059669', bg: '#f0fdf4', Icon: ShoppingBagIcon },
@@ -48,6 +86,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, showMenuButton = false }) 
           <Bars3Icon className="h-5 w-5 text-gray-500" />
         </button>
       )}
+
+      <SyncCountdown />
 
       {/* Campana */}
       <div ref={ref} className="relative">
