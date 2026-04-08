@@ -7,7 +7,8 @@ import {
   getFlexPedidos, upsertFlexDia, deleteFlexDia,
   getFlexConfig, saveFlexConfig, DiaFlex as DiaFlexDB, ConfigFlex as ConfigFlexDB,
 } from '../../utils/db';
-import { sincronizarFlexDesdeML, isConnected } from '../../services/mlService';
+import { isConnected } from '../../services/mlService';
+import { sincronizarTodo } from '../../services/syncService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -433,30 +434,10 @@ const Flex: React.FC = () => {
   const sincronizarDesdeML = async () => {
     setSincronizando(true);
     try {
-      const diasML = await sincronizarFlexDesdeML();
-      setPedidos(prev => {
-        const merged = [...prev];
-        for (const d of diasML) {
-          const total = d.caba + d.primerCordon + d.segundoCordon;
-          if (total === 0) continue;
-          const idx = merged.findIndex(p => p.fecha === d.fecha);
-          const diaFlex: DiaFlex = {
-            fecha: d.fecha,
-            caba: d.caba,
-            primerCordon: d.primerCordon,
-            segundoCordon: d.segundoCordon,
-            aTiempo: d.aTiempo,
-            tarde: d.tarde,
-          };
-          if (idx >= 0) {
-            merged[idx] = diaFlex;
-          } else {
-            merged.push(diaFlex);
-          }
-          upsertFlexDia(diaFlex);
-        }
-        return merged;
-      });
+      await sincronizarTodo();
+      // Recargar desde Supabase después del sync
+      const p = await getFlexPedidos();
+      if (p.length > 0) setPedidos(p);
     } catch (e) {
       console.error('Error sincronizando Flex:', e);
     } finally {
