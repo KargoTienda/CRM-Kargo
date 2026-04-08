@@ -4,7 +4,7 @@ import {
   Producto, ConfigParams, calcGanBruta, calcMargen,
   calcStockTotal, CATEGORIA_EMOJI, TransaccionStock,
 } from './types';
-import { getTransacciones } from '../../utils/db';
+import { getTransaccionesByProducto } from '../../utils/db';
 import PreciosCalc from './PreciosCalc';
 
 interface Props {
@@ -38,16 +38,8 @@ const ProductoDrawer: React.FC<Props> = ({ producto, config, onClose, onEditar }
   useEffect(() => {
     if (tabActiva !== 'historial' || !producto) return;
     setCargandoHist(true);
-    getTransacciones().then(todas => {
-      const skuBase = producto.sku.toLowerCase();
-      const filtradas = todas
-        .filter(t =>
-          t.sku?.toLowerCase().startsWith(skuBase) ||
-          t.productoNombre?.toLowerCase() === producto.nombre.toLowerCase()
-        )
-        .sort((a, b) => b.fecha.localeCompare(a.fecha))
-        .slice(0, 50);
-      setHistorial(filtradas);
+    getTransaccionesByProducto(producto.sku, producto.nombre).then(txs => {
+      setHistorial(txs);
       setCargandoHist(false);
     });
   }, [tabActiva, producto]);

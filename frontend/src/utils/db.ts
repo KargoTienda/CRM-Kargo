@@ -76,16 +76,32 @@ export async function saveConfig(c: ConfigParams): Promise<void> {
 
 // ─── TRANSACCIONES STOCK ─────────────────────────────────────────────────────
 
+function mapTx(r: any): TransaccionStock {
+  return {
+    id: r.id, fecha: r.fecha, productoNombre: r.producto_nombre,
+    sku: r.sku, color: r.color, cantidad: r.cantidad,
+    destino: r.destino, nota: r.nota, usuario: r.usuario,
+  };
+}
+
 export async function getTransacciones(): Promise<TransaccionStock[]> {
   const { data, error } = await supabase
     .from('kargo_transacciones').select('*')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(2000);
   if (error) { console.error('[db] getTransacciones:', error.message); return []; }
-  return (data || []).map(r => ({
-    id: r.id, fecha: r.fecha, productoNombre: r.producto_nombre,
-    sku: r.sku, color: r.color, cantidad: r.cantidad,
-    destino: r.destino, nota: r.nota,
-  }));
+  return (data || []).map(mapTx);
+}
+
+export async function getTransaccionesByProducto(skuBase: string, nombre: string): Promise<TransaccionStock[]> {
+  // Traer todas las transacciones del producto filtrando por nombre o SKU que empiece con el SKU base
+  const { data, error } = await supabase
+    .from('kargo_transacciones').select('*')
+    .or(`producto_nombre.eq.${nombre},sku.ilike.${skuBase}%`)
+    .order('created_at', { ascending: false })
+    .limit(500);
+  if (error) { console.error('[db] getTransaccionesByProducto:', error.message); return []; }
+  return (data || []).map(mapTx);
 }
 
 export async function insertTransaccion(tx: TransaccionStock): Promise<void> {
