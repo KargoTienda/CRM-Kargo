@@ -4,7 +4,7 @@
  * órdenes históricas, transacciones de stock, datos Flex.
  */
 
-import { getTodasLasOrdenes } from './mlService';
+import { getTodasLasOrdenes, mlGet } from './mlService';
 import {
   getProductos, insertTransaccion, getMLOrderIdsProcessed, upsertFlexDia,
 } from '../utils/db';
@@ -154,7 +154,43 @@ export async function sincronizarTodo(
     }
   }
 
-  // 5. Guardar datos Flex en Supabase
+  // 5. Para órdenes recientes sin tag d2c, consultar el envío para detectar Flex
+  onProgress?.('Verificando envíos Flex recientes...');
+  const hace90dias = new Date();
+  hace90dias.setDate(hace90dias.getDate() - 90);
+
+  for (const orden of ordenes) {
+    if (orden.status !== 'paid') continue;
+    if (esFlexOrder(orden)) continue; // ya procesado
+    const shippingId = orden.shipping?.id;
+    if (!shippingId) continue;
+    const fechaOrden = new Date(orden.date_created || '');
+    if (fechaOrden < hace90dias) continue; // solo recientes
+
+    try {
+      const shipment = await mlGet(`/shipments/${shippingId}`);
+      const lt = shipment?.logistic_type;
+      if (lt === 'self_service' || lt === 'custom' || lt === 'xd_drop_off') {
+        const fechaRaw = shipment.date_shipped || orden.date_closed || orden.date_created;
+        if (!fechaRaw) continue;
+        const fecha = fechaRaw.slice(0, 10);
+        if (!flexPorFecha[fecha]) {
+          flexPorFecha[fecha] = { caba: 0, primerCordon: 0, segundoCordon: 0, aTiempo: 0, tarde: 0 };
+        }
+        const zip = shipment.receiver_address?.zip_code || orden.shipping?.receiver_address?.zip_code || '';
+        const zona = clasificarZona(zip);
+        const qty = (orden.order_items || []).reduce((s: number, i: any) => s + (i.quantity || 1), 0);
+        flexPorFecha[fecha][zona] += qty;
+        try {
+          const hora = new Date(fechaRaw).getHours();
+          if (hora < 9) flexPorFecha[fecha].aTiempo++;
+          else flexPorFecha[fecha].tarde++;
+        } catch {}
+      }
+    } catch {}
+  }
+
+  // 6. Guardar datos Flex en Supabase
   onProgress?.('Guardando datos Flex...');
   const flexDias = Object.entries(flexPorFecha).map(([fecha, d]) => ({ fecha, ...d }));
   for (const dia of flexDias) {
