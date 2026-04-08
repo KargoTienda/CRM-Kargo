@@ -118,6 +118,9 @@ export async function sincronizarTodo(
   let transaccionesCreadas = 0;
   let flexOrdenesDetectadas = 0;
 
+  // Evitar contar el mismo envío dos veces (pack: 2 órdenes = 1 paquete)
+  const shipmentsContados = new Set<string>();
+
   // Para Flex: acumular por fecha de ENTREGA (no de creación)
   const flexPorFecha: Record<string, {
     caba: number; primerCordon: number; segundoCordon: number;
@@ -130,22 +133,26 @@ export async function sincronizarTodo(
 
     // Flex: siempre actualizar aunque ya esté procesada
     if (esFlexOrder(orden)) {
-      flexOrdenesDetectadas++;
-      if (orden.date_created) {
-        // La fecha de entrega depende del horario de corte
-        const fecha = fechaEntrega(orden.date_created, horarioCorte);
-        if (!flexPorFecha[fecha]) {
-          flexPorFecha[fecha] = { caba: 0, primerCordon: 0, segundoCordon: 0, aTiempo: 0, tarde: 0 };
-        }
-        const zip = orden.shipping?.receiver_address?.zip_code || '';
-        const zona = clasificarZona(zip);
-        flexPorFecha[fecha][zona] += 1; // 1 paquete por pedido
-        // A tiempo / tarde: basado en cuándo fue entregado
-        const fechaEntregaRaw = orden.shipping?.date_shipped || orden.date_closed;
-        if (fechaEntregaRaw) {
-          const horaEntrega = new Date(fechaEntregaRaw).getHours();
-          if (horaEntrega < horarioTarde) flexPorFecha[fecha].aTiempo++;
-          else flexPorFecha[fecha].tarde++;
+      const shipId = String(orden.shipping?.id || '');
+      if (shipId && shipmentsContados.has(shipId)) {
+        // mismo paquete físico, ya contado
+      } else {
+        if (shipId) shipmentsContados.add(shipId);
+        flexOrdenesDetectadas++;
+        if (orden.date_created) {
+          const fecha = fechaEntrega(orden.date_created, horarioCorte);
+          if (!flexPorFecha[fecha]) {
+            flexPorFecha[fecha] = { caba: 0, primerCordon: 0, segundoCordon: 0, aTiempo: 0, tarde: 0 };
+          }
+          const zip = orden.shipping?.receiver_address?.zip_code || '';
+          const zona = clasificarZona(zip);
+          flexPorFecha[fecha][zona] += 1;
+          const fechaEntregaRaw = orden.shipping?.date_shipped || orden.date_closed;
+          if (fechaEntregaRaw) {
+            const horaEntrega = new Date(fechaEntregaRaw).getHours();
+            if (horaEntrega < horarioTarde) flexPorFecha[fecha].aTiempo++;
+            else flexPorFecha[fecha].tarde++;
+          }
         }
       }
     }
@@ -192,6 +199,8 @@ export async function sincronizarTodo(
     const orderId = String(orden.id);
     const shippingId = orden.shipping?.id;
     if (!shippingId) continue;
+    // Si este envío ya fue contado (pack con múltiples órdenes), saltar
+    if (shipmentsContados.has(String(shippingId))) continue;
     const fechaOrden = new Date(orden.date_created || '');
     if (fechaOrden < hace90dias) continue; // solo recientes
 
@@ -203,6 +212,7 @@ export async function sincronizarTodo(
       // 'xd_drop_off' = dejás en punto ML, ML entrega → NO es Flex
       const esEnvioPropio = lt === 'self_service';
       if (esEnvioPropio) {
+        shipmentsContados.add(String(shippingId));
         flexOrdenesDetectadas++;
         if (!orden.date_created) continue;
         // Fecha de entrega según horario de corte
