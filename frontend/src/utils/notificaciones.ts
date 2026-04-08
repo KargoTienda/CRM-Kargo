@@ -12,6 +12,13 @@ export interface Notificacion {
 type Listener = (n: Notificacion) => void;
 const listeners: Listener[] = [];
 
+const PUSH_URL_MAP: Record<TipoNotif, string> = {
+  venta:              '/finanzas',
+  mensaje:            '/mensajes',
+  reclamo:            '/mensajes',
+  stock_sin_cobertura: '/catalogo',
+};
+
 export function emitirNotificacion(n: Omit<Notificacion, 'id' | 'fecha' | 'leida'>) {
   const notif: Notificacion = {
     ...n,
@@ -20,6 +27,18 @@ export function emitirNotificacion(n: Omit<Notificacion, 'id' | 'fecha' | 'leida
     leida: false,
   };
   listeners.forEach(l => l(notif));
+
+  // Enviar push a todos los dispositivos registrados
+  fetch('/api/send-push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: n.titulo,
+      body: n.descripcion,
+      type: n.tipo,
+      url: PUSH_URL_MAP[n.tipo] || '/dashboard',
+    }),
+  }).catch(() => {/* silencioso */});
 }
 
 export function suscribirNotificaciones(fn: Listener): () => void {

@@ -316,6 +316,106 @@ async function sincronizarTodo(supabase, token) {
     }
   }
 
+  // 8. Preguntas sin responder nuevas
+  let preguntasNotificadas = 0;
+  try {
+    // IDs ya notificados
+    const { data: yaNotifRow } = await supabase.from('kargo_store').select('value').eq('key', 'notif_preguntas').maybeSingle();
+    const yaNotifPreg = new Set(yaNotifRow?.value || []);
+
+    const pregResp = await mlGet(`/questions/search?seller_id=${token.user_id}&status=UNANSWERED&limit=50`, at);
+    const preguntas = pregResp.questions || [];
+    const nuevasPreg = preguntas.filter(p => !yaNotifPreg.has(String(p.id)));
+
+    for (const p of nuevasPreg) {
+      const comprador = p.from?.nickname || `Comprador ${p.from?.id}`;
+      const producto = p.item_title || `Publicación ${p.item_id}`;
+      await enviarPush(supabase, {
+        title: `Nueva pregunta de ${comprador}`,
+        body: `${p.text?.slice(0, 100) || '...'}`,
+        type: 'mensaje',
+        url: '/mensajes',
+      });
+      yaNotifPreg.add(String(p.id));
+      preguntasNotificadas++;
+    }
+
+    if (nuevasPreg.length > 0) {
+      // Guardar solo los últimos 200 IDs para no crecer indefinido
+      const arr = [...yaNotifPreg].slice(-200);
+      await supabase.from('kargo_store').upsert({ key: 'notif_preguntas', value: arr, updated_at: new Date().toISOString() });
+    }
+  } catch (_) {}
+
+  // 9. Reclamos nuevos / abiertos
+  let reclamosNotificados = 0;
+  try {
+    const { data: yaRecRow } = await supabase.from('kargo_store').select('value').eq('key', 'notif_reclamos').maybeSingle();
+    const yaNotifRec = new Set(yaRecRow?.value || []);
+
+    const claimsResp = await mlGet(`/post-purchase/v1/claims/search?seller_id=${token.user_id}&limit=20`, at);
+    const claims = claimsResp.data || [];
+    const abiertos = claims.filter(c => c.status === 'opened' && !yaNotifRec.has(String(c.id)));
+
+    for (const claim of abiertos) {
+      const MOTIVOS = { PNR: 'Producto no recibido', PDD: 'Producto dañado', NFG: 'No es como se describe', OTH: 'Otro motivo', QTY: 'Cantidad incorrecta' };
+      const motivo = MOTIVOS[claim.reason_id] || claim.reason_id || 'Reclamo abierto';
+      await enviarPush(supabase, {
+        title: `Nuevo reclamo: ${motivo}`,
+        body: `Orden #${claim.resource_id} — requiere atención urgente`,
+        type: 'reclamo',
+        url: '/mensajes',
+      });
+      yaNotifRec.add(String(claim.id));
+      reclamosNotificados++;
+    }
+
+    if (abiertos.length > 0) {
+      const arr = [...yaNotifRec].slice(-200);
+      await supabase.from('kargo_store').upsert({ key: 'notif_reclamos', value: arr, updated_at: new Date().toISOString() });
+    }
+  } catch (_) {}
+
+  // 10. Mensajes post-venta sin leer nuevos
+  let postVentaNotificados = 0;
+  try {
+    const { data: yaMsgRow } = await supabase.from('kargo_store').select('value').eq('key', 'notif_postventa').maybeSingle();
+    const yaNotifMsg = new Set(yaMsgRow?.value || []);
+
+    // Tomar las 15 órdenes más recientes con pack_id
+    const conPack = ordenes.filter(o => o.pack_id && o.status === 'paid').slice(0, 15);
+    const packsVistos = new Set();
+
+    for (const orden of conPack) {
+      const packId = String(orden.pack_id);
+      if (packsVistos.has(packId) || yaNotifMsg.has(packId)) continue;
+      packsVistos.add(packId);
+      try {
+        const msgs = await mlGet(`/messages/packs/${packId}/sellers/${token.user_id}?tag=post_sale`, at);
+        const conversacion = msgs.messages || [];
+        const hayNuevo = conversacion.some(m => m.from?.user_id !== token.user_id && !m.message_date?.read);
+        if (hayNuevo) {
+          const comprador = orden.buyer?.nickname || `Comprador ${orden.buyer?.id}`;
+          const producto = orden.order_items?.[0]?.item?.title || 'tu pedido';
+          const ultimo = conversacion.filter(m => m.from?.user_id !== token.user_id).pop();
+          await enviarPush(supabase, {
+            title: `Mensaje de ${comprador}`,
+            body: ultimo?.text?.plain?.slice(0, 120) || `Tiene un mensaje nuevo sobre ${producto}`,
+            type: 'mensaje',
+            url: '/mensajes',
+          });
+          yaNotifMsg.add(packId);
+          postVentaNotificados++;
+        }
+      } catch (_) {}
+    }
+
+    if (postVentaNotificados > 0) {
+      const arr = [...yaNotifMsg].slice(-300);
+      await supabase.from('kargo_store').upsert({ key: 'notif_postventa', value: arr, updated_at: new Date().toISOString() });
+    }
+  } catch (_) {}
+
   // Guardar timestamp del último sync
   await supabase.from('kargo_store').upsert({
     key: 'last_sync_at', value: new Date().toISOString(), updated_at: new Date().toISOString(),
@@ -323,8 +423,9 @@ async function sincronizarTodo(supabase, token) {
 
   log.push(`Transacciones creadas: ${transaccionesCreadas}`);
   log.push(`Flex detectados: ${flexOrdenesDetectadas} envíos, ${flexDiasActualizados} días`);
+  log.push(`Push → ventas:${transaccionesCreadas} preguntas:${preguntasNotificadas} reclamos:${reclamosNotificados} postventa:${postVentaNotificados}`);
 
-  return { ordenesTotal: ordenes.length, transaccionesCreadas, flexOrdenesDetectadas, flexDiasActualizados, log };
+  return { ordenesTotal: ordenes.length, transaccionesCreadas, flexOrdenesDetectadas, flexDiasActualizados, preguntasNotificadas, reclamosNotificados, postVentaNotificados, log };
 }
 
 // ─── Handler HTTP ─────────────────────────────────────────
