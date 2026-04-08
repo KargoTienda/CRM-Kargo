@@ -79,24 +79,25 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, showMenuButton = false }) 
 
   return (
     <header style={{ backgroundColor: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(12px)', borderBottom: '1px solid rgba(0,0,0,0.06)' }}
-      className="px-6 py-3 flex items-center justify-end gap-3 relative z-20">
+      className="px-4 py-2 flex items-center justify-end gap-2 relative z-20">
 
       {showMenuButton && (
-        <button onClick={onMenuClick} className="mr-auto p-2 rounded-lg hover:bg-gray-100 lg:hidden">
+        <button onClick={onMenuClick} className="mr-auto p-1.5 rounded-lg hover:bg-gray-100 lg:hidden">
           <Bars3Icon className="h-5 w-5 text-gray-500" />
         </button>
       )}
 
       <SyncCountdown />
 
-      {/* Campana */}
+      {/* Campana — circulito compacto */}
       <div ref={ref} className="relative">
         <button onClick={() => { setAbierto(v => !v); }}
-          className="relative p-2 rounded-xl hover:bg-gray-100 transition-all">
-          <BellIcon className="h-5 w-5 text-gray-500" />
+          className="relative w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-all"
+          style={noLeidas > 0 ? { backgroundColor: '#004085' } : {}}>
+          <BellIcon className="h-4 w-4" style={{ color: noLeidas > 0 ? 'white' : '#6b7280' }} />
           {noLeidas > 0 && (
-            <span className="absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center text-white font-bold"
-              style={{ backgroundColor: '#D35400', fontSize: '9px' }}>
+            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-white font-bold"
+              style={{ backgroundColor: '#D35400', fontSize: '8px' }}>
               {noLeidas > 9 ? '9+' : noLeidas}
             </span>
           )}

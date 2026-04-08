@@ -144,6 +144,14 @@ interface DatosContextType {
 
 const DatosContext = createContext<DatosContextType | null>(null);
 
+// Cargar token ML compartido desde Supabase si no hay uno local
+async function cargarTokenCompartido() {
+  try {
+    const { loadTokenFromSupabase } = await import('../services/mlService');
+    await loadTokenFromSupabase();
+  } catch (_) {}
+}
+
 // Auto-sync en background via endpoint server-side
 async function triggerAutoSync() {
   try {
@@ -163,11 +171,18 @@ export const DatosProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [cargandoML, setCargandoML] = useState(false);
   const [errorML, setErrorML] = useState<string | null>(null);
 
-  // Auto-sync al cargar si ML está conectado
+  // Al cargar: intentar token compartido de Supabase, luego sync
   useEffect(() => {
-    if (isConnected()) {
-      triggerAutoSync();
-    }
+    (async () => {
+      if (!isConnected()) {
+        await cargarTokenCompartido();
+        // Si después de cargar ya hay token, actualizar estado
+        if (isConnected()) setMlConectado(true);
+      }
+      if (isConnected()) {
+        triggerAutoSync();
+      }
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
