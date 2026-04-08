@@ -240,3 +240,81 @@ export async function enviarMensaje(packId: string, texto: string) {
     text: texto,
   });
 }
+
+// ─── Flex: sincronizar desde ML ───────────────────────────
+
+function clasificarZonaFlex(zip: string): 'caba' | 'primerCordon' | 'segundoCordon' {
+  if (!zip) return 'primerCordon';
+  const z = zip.trim().toUpperCase();
+  // Formato nuevo: C1001ABC = CABA
+  if (z.startsWith('C')) return 'caba';
+  const num = parseInt(z);
+  if (isNaN(num)) return 'primerCordon';
+  if (num >= 1001 && num <= 1499) return 'caba';
+  if (num >= 1600 && num <= 1779) return 'primerCordon';
+  if (num >= 1780 && num <= 1999) return 'segundoCordon';
+  return 'primerCordon';
+}
+
+function esFlexOrder(orden: any): boolean {
+  const shipping = orden.shipping;
+  if (!shipping) return false;
+  return (
+    shipping.logistic_type === 'custom' ||
+    shipping.logistic_type === 'self_service' ||
+    (orden.tags || []).some((t: string) => t.toLowerCase().includes('flex')) ||
+    (orden.tags || []).includes('delivered_by_seller')
+  );
+}
+
+export interface DiaFlexSync {
+  fecha: string;
+  caba: number;
+  primerCordon: number;
+  segundoCordon: number;
+  aTiempo: number;
+  tarde: number;
+}
+
+export async function sincronizarFlexDesdeML(): Promise<DiaFlexSync[]> {
+  // 1. Primero sincronizar órdenes recientes desde ML
+  await getTodasLasOrdenes();
+
+  // 2. Leer todas las órdenes guardadas en Supabase
+  const { data } = await supabase
+    .from('kargo_ordenes_historial')
+    .select('data');
+
+  const ordenes = (data || []).map((r: any) => r.data);
+
+  // 3. Filtrar sólo órdenes Flex
+  const flexOrdenes = ordenes.filter(esFlexOrder);
+
+  // 4. Agrupar por fecha de envío/creación
+  const porFecha: Record<string, DiaFlexSync> = {};
+
+  for (const orden of flexOrdenes) {
+    // Usar date_closed si existe (orden completada), sino date_created
+    const fechaRaw = orden.shipping?.date_shipped || orden.date_closed || orden.date_created;
+    if (!fechaRaw) continue;
+    const fecha = fechaRaw.slice(0, 10);
+
+    if (!porFecha[fecha]) {
+      porFecha[fecha] = { fecha, caba: 0, primerCordon: 0, segundoCordon: 0, aTiempo: 0, tarde: 0 };
+    }
+
+    const zip = orden.shipping?.receiver_address?.zip_code || '';
+    const zona = clasificarZonaFlex(zip);
+    porFecha[fecha][zona]++;
+
+    // Detección básica on-time: si la orden se completó antes de las 9am considera a tiempo
+    try {
+      const fechaEnvio = new Date(fechaRaw);
+      const hora = fechaEnvio.getHours();
+      if (hora < 9) porFecha[fecha].aTiempo++;
+      else porFecha[fecha].tarde++;
+    } catch {}
+  }
+
+  return Object.values(porFecha).sort((a, b) => a.fecha.localeCompare(b.fecha));
+}

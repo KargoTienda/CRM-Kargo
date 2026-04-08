@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   Cog6ToothIcon, XMarkIcon, PlusIcon, DocumentArrowDownIcon,
-  CheckCircleIcon, ClockIcon,
+  CheckCircleIcon, ClockIcon, ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import {
   getFlexPedidos, upsertFlexDia, deleteFlexDia,
   getFlexConfig, saveFlexConfig, DiaFlex as DiaFlexDB, ConfigFlex as ConfigFlexDB,
 } from '../../utils/db';
+import { sincronizarFlexDesdeML, isConnected } from '../../services/mlService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -396,6 +397,8 @@ const Flex: React.FC = () => {
   const [cargado, setCargado] = useState(false);
   const [configAbierto, setConfigAbierto] = useState(false);
   const [diaModal, setDiaModal] = useState<string | null>(null);
+  const [sincronizando, setSincronizando] = useState(false);
+  const mlConectado = isConnected();
 
   useEffect(() => {
     Promise.all([getFlexPedidos(), getFlexConfig()]).then(([p, c]) => {
@@ -427,6 +430,40 @@ const Flex: React.FC = () => {
 
   const diaEditar = diaModal ? pedidos.find(p => p.fecha === diaModal) : undefined;
 
+  const sincronizarDesdeML = async () => {
+    setSincronizando(true);
+    try {
+      const diasML = await sincronizarFlexDesdeML();
+      setPedidos(prev => {
+        const merged = [...prev];
+        for (const d of diasML) {
+          const total = d.caba + d.primerCordon + d.segundoCordon;
+          if (total === 0) continue;
+          const idx = merged.findIndex(p => p.fecha === d.fecha);
+          const diaFlex: DiaFlex = {
+            fecha: d.fecha,
+            caba: d.caba,
+            primerCordon: d.primerCordon,
+            segundoCordon: d.segundoCordon,
+            aTiempo: d.aTiempo,
+            tarde: d.tarde,
+          };
+          if (idx >= 0) {
+            merged[idx] = diaFlex;
+          } else {
+            merged.push(diaFlex);
+          }
+          upsertFlexDia(diaFlex);
+        }
+        return merged;
+      });
+    } catch (e) {
+      console.error('Error sincronizando Flex:', e);
+    } finally {
+      setSincronizando(false);
+    }
+  };
+
   // Resumen mensual
   const todosMeses = semanas.flatMap(s => {
     const dias: DiaFlex[] = [];
@@ -455,10 +492,23 @@ const Flex: React.FC = () => {
           <h1 className="text-2xl font-black" style={{ color: '#004085' }}>Flex</h1>
           <p className="text-sm text-gray-400 mt-0.5">Gestión de entregas Mercado Libre Flex</p>
         </div>
-        <button onClick={() => setConfigAbierto(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">
-          <Cog6ToothIcon className="h-4 w-4" /> Parámetros
-        </button>
+        <div className="flex items-center gap-2">
+          {mlConectado && (
+            <button
+              onClick={sincronizarDesdeML}
+              disabled={sincronizando}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-60"
+              style={{ backgroundColor: '#004085' }}
+            >
+              <ArrowPathIcon className={`h-4 w-4 ${sincronizando ? 'animate-spin' : ''}`} />
+              {sincronizando ? 'Sincronizando...' : 'Sync ML'}
+            </button>
+          )}
+          <button onClick={() => setConfigAbierto(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">
+            <Cog6ToothIcon className="h-4 w-4" /> Parámetros
+          </button>
+        </div>
       </div>
 
       {/* Selector de mes */}
