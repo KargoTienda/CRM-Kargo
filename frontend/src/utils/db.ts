@@ -159,6 +159,8 @@ export async function deleteFlexDia(fecha: string): Promise<void> {
 export interface ConfigFlex {
   costoCaba: number; costoPrimerCordon: number; costoSegundoCordon: number;
   mlCaba: number; mlPrimerCordon: number; mlSegundoCordon: number;
+  horarioCorte: number;  // hora (0-23) después de la cual el pedido es para mañana
+  horarioTarde: number;  // hora (0-23) después de la cual la entrega se considera tarde
 }
 
 export async function getFlexConfig(): Promise<ConfigFlex | null> {
@@ -170,6 +172,8 @@ export async function getFlexConfig(): Promise<ConfigFlex | null> {
     costoCaba: data.costo_caba, costoPrimerCordon: data.costo_primer_cordon,
     costoSegundoCordon: data.costo_segundo_cordon, mlCaba: data.ml_caba,
     mlPrimerCordon: data.ml_primer_cordon, mlSegundoCordon: data.ml_segundo_cordon,
+    horarioCorte: data.horario_corte ?? 15,
+    horarioTarde: data.horario_tarde ?? 9,
   };
 }
 
@@ -178,6 +182,7 @@ export async function saveFlexConfig(c: ConfigFlex): Promise<void> {
     id: 1, costo_caba: c.costoCaba, costo_primer_cordon: c.costoPrimerCordon,
     costo_segundo_cordon: c.costoSegundoCordon, ml_caba: c.mlCaba,
     ml_primer_cordon: c.mlPrimerCordon, ml_segundo_cordon: c.mlSegundoCordon,
+    horario_corte: c.horarioCorte, horario_tarde: c.horarioTarde,
     updated_at: new Date().toISOString(),
   });
   if (error) console.error('[db] saveFlexConfig:', error.message);

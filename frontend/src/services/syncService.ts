@@ -7,6 +7,7 @@
 import { getTodasLasOrdenes, mlGet } from './mlService';
 import {
   getProductos, insertTransaccion, getMLOrderIdsProcessed, upsertFlexDia,
+  getFlexConfig, ConfigFlex,
 } from '../utils/db';
 import { Producto, TransaccionStock } from '../components/catalogo/types';
 
@@ -61,6 +62,19 @@ function esFlexOrder(orden: any): boolean {
   );
 }
 
+/**
+ * Calcula la fecha de entrega según el horario de corte.
+ * Si el pedido se hizo antes del corte → se entrega hoy.
+ * Si se hizo después del corte → se entrega mañana.
+ */
+function fechaEntrega(fechaCreacion: string, horarioCorte: number): string {
+  const d = new Date(fechaCreacion);
+  if (d.getHours() >= horarioCorte) {
+    d.setDate(d.getDate() + 1);
+  }
+  return d.toISOString().slice(0, 10);
+}
+
 function clasificarZona(zip: string): 'caba' | 'primerCordon' | 'segundoCordon' {
   if (!zip) return 'primerCordon';
   const z = zip.trim().toUpperCase();
@@ -91,12 +105,20 @@ export async function sincronizarTodo(
   onProgress?.('Verificando historial existente...');
   const yaProcesadas = await getMLOrderIdsProcessed();
 
-  // 4. Procesar cada orden pagada → kargo_transacciones
+  // 4. Cargar config Flex (horarios de corte y tarde)
+  const flexConfig: ConfigFlex = (await getFlexConfig()) || {
+    costoCaba: 800, costoPrimerCordon: 1200, costoSegundoCordon: 1800,
+    mlCaba: 1000, mlPrimerCordon: 1500, mlSegundoCordon: 2200,
+    horarioCorte: 15, horarioTarde: 9,
+  };
+  const { horarioCorte, horarioTarde } = flexConfig;
+
+  // 5. Procesar cada orden pagada → kargo_transacciones
   onProgress?.('Creando transacciones de ventas...');
   let transaccionesCreadas = 0;
   let flexOrdenesDetectadas = 0;
 
-  // Para Flex: acumular por fecha
+  // Para Flex: acumular por fecha de ENTREGA (no de creación)
   const flexPorFecha: Record<string, {
     caba: number; primerCordon: number; segundoCordon: number;
     aTiempo: number; tarde: number;
@@ -109,20 +131,22 @@ export async function sincronizarTodo(
     // Flex: siempre actualizar aunque ya esté procesada
     if (esFlexOrder(orden)) {
       flexOrdenesDetectadas++;
-      const fechaRaw = orden.shipping?.date_shipped || orden.date_closed || orden.date_created;
-      if (fechaRaw) {
-        const fecha = fechaRaw.slice(0, 10);
+      if (orden.date_created) {
+        // La fecha de entrega depende del horario de corte
+        const fecha = fechaEntrega(orden.date_created, horarioCorte);
         if (!flexPorFecha[fecha]) {
           flexPorFecha[fecha] = { caba: 0, primerCordon: 0, segundoCordon: 0, aTiempo: 0, tarde: 0 };
         }
         const zip = orden.shipping?.receiver_address?.zip_code || '';
         const zona = clasificarZona(zip);
-        flexPorFecha[fecha][zona] += 1; // 1 entrega por pedido, no por unidad
-        try {
-          const hora = new Date(fechaRaw).getHours();
-          if (hora < 9) flexPorFecha[fecha].aTiempo++;
+        flexPorFecha[fecha][zona] += 1; // 1 paquete por pedido
+        // A tiempo / tarde: basado en cuándo fue entregado
+        const fechaEntregaRaw = orden.shipping?.date_shipped || orden.date_closed;
+        if (fechaEntregaRaw) {
+          const horaEntrega = new Date(fechaEntregaRaw).getHours();
+          if (horaEntrega < horarioTarde) flexPorFecha[fecha].aTiempo++;
           else flexPorFecha[fecha].tarde++;
-        } catch {}
+        }
       }
     }
 
@@ -180,20 +204,22 @@ export async function sincronizarTodo(
       const esEnvioPropio = lt === 'self_service';
       if (esEnvioPropio) {
         flexOrdenesDetectadas++;
-        const fechaRaw = shipment.date_shipped || orden.date_closed || orden.date_created;
-        if (!fechaRaw) continue;
-        const fecha = fechaRaw.slice(0, 10);
+        if (!orden.date_created) continue;
+        // Fecha de entrega según horario de corte
+        const fecha = fechaEntrega(orden.date_created, horarioCorte);
         if (!flexPorFecha[fecha]) {
           flexPorFecha[fecha] = { caba: 0, primerCordon: 0, segundoCordon: 0, aTiempo: 0, tarde: 0 };
         }
         const zip = shipment.receiver_address?.zip_code || orden.shipping?.receiver_address?.zip_code || '';
         const zona = clasificarZona(zip);
-        flexPorFecha[fecha][zona] += 1; // 1 entrega por pedido
-        try {
-          const hora = new Date(fechaRaw).getHours();
-          if (hora < 9) flexPorFecha[fecha].aTiempo++;
+        flexPorFecha[fecha][zona] += 1; // 1 paquete por pedido
+        // A tiempo / tarde según fecha de envío real
+        const fechaEntregaRaw = shipment.date_shipped || orden.date_closed;
+        if (fechaEntregaRaw) {
+          const horaEntrega = new Date(fechaEntregaRaw).getHours();
+          if (horaEntrega < horarioTarde) flexPorFecha[fecha].aTiempo++;
           else flexPorFecha[fecha].tarde++;
-        } catch {}
+        }
       }
     } catch {}
   }

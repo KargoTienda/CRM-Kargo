@@ -24,6 +24,8 @@ const CONFIG_DEFAULT: ConfigFlex = {
   mlCaba: 1000,
   mlPrimerCordon: 1500,
   mlSegundoCordon: 2200,
+  horarioCorte: 15,
+  horarioTarde: 9,
 };
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -94,6 +96,24 @@ const ConfigModal: React.FC<{ config: ConfigFlex; onSave: (c: ConfigFlex) => voi
               </div>
             </div>
           ))}
+        </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Horarios</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Horario de corte (hs)</label>
+                <input type="number" min={0} max={23} value={f.horarioCorte} onChange={e => set('horarioCorte', Number(e.target.value))}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                <p className="text-xs text-gray-400 mt-1">Pedidos después de este horario se entregan al día siguiente</p>
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Límite para "a tiempo" (hs)</label>
+                <input type="number" min={0} max={23} value={f.horarioTarde} onChange={e => set('horarioTarde', Number(e.target.value))}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                <p className="text-xs text-gray-400 mt-1">Entrega después de este horario se cuenta como tarde</p>
+              </div>
+            </div>
+          </div>
         </div>
         <div className="flex gap-3 px-6 py-4 border-t border-gray-100">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm border border-gray-200 text-gray-600 hover:bg-gray-50">Cancelar</button>
